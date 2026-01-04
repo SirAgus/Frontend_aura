@@ -1,106 +1,93 @@
 'use client';
 
-import React, { useState } from 'react';
-import { Moon, Sun, Mic, Activity, Cpu, Languages, Play, Waves, X, Menu, ArrowRight, User, Lock, Mail, Globe } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import {
+  Play, Pause, Mic, Activity, Globe, Lock, Code, Zap,
+  Github, Twitter, Disc, Volume2, User, Mail, ArrowRight,
+  ChevronRight, X, Menu, Sun, Moon, Waves, Sparkles, Check
+} from 'lucide-react';
 
-// Translations
 const translations = {
   es: {
-    demo: 'Demo',
-    features: 'Características',
-    api: 'API',
-    signIn: 'Iniciar Sesión',
-    getApiKey: 'Obtener API Key',
-    welcomeBack: 'BIENVENIDO',
-    accessTerminal: 'ACCESO AL TERMINAL',
-    signInDesc: 'Ingresa tus credenciales para acceder al núcleo neuronal.',
-    signUpDesc: 'Inicializa tu espacio de trabajo y obtén tu API key.',
-    fullName: 'Nombre Completo',
-    email: 'correo@empresa.com',
-    password: 'Contraseña',
-    authenticate: 'Autenticar',
-    initializeAccount: 'Inicializar Cuenta',
-    createAccount: 'CREAR CUENTA',
-    alreadyHaveAccount: '¿YA TIENES CUENTA?',
-    version: 'V2.0 ESTABLE',
-    latency: 'LATENCIA: 12ms',
-    sonicPresence: 'PRESENCIA',
-    engine: 'SÓNICA.',
-    heroDesc: 'Síntesis neuronal hiper-realista. No distinguible de la voz humana. Diseñada para conversaciones infinitas.',
-    voiceSample: 'MUESTRA DE VOZ: "AURA"',
+    heroTitle: 'Síntesis Neural de Voz para la Próxima Generación',
+    heroDesc: 'Clonación de voz hiperrealista y síntesis de texto a voz con latencia ultra baja. Diseñado para desarrolladores y creadores.',
+    startNow: 'COMENZAR AHORA',
+    documentation: 'DOCUMENTACIÓN',
+    features: 'CARACTERÍSTICAS',
+    pricing: 'PRECIOS',
+    showcase: 'DEMOSTRACIÓN',
+    status: 'ESTADO: ONLINE',
+    copyright: '© 2024 AURA VOICE SYSTEMS.',
+    rights: 'TODOS LOS DERECHOS RESERVADOS.',
+    privacy: 'PRIVACIDAD',
+    terms: 'TÉRMINOS',
+    contact: 'CONTACTO',
     scrollToListen: 'DESPLAZA PARA ESCUCHAR',
-    systemCapabilities: 'CAPACIDADES DEL SISTEMA',
-    neuralArchitecture: '[ ARQUITECTURA NEURONAL ]',
-    latencyFeature: '01 / LATENCIA',
-    realtimeCore: 'Núcleo en Tiempo Real',
-    realtimeDesc: 'Procesamiento en <50ms para conversaciones fluidas y sin interrupciones.',
-    emotionFeature: '02 / EMOCIÓN',
-    adaptiveTone: 'Tono Adaptativo',
-    adaptiveToneDesc: 'La IA detecta el contexto y ajusta el tono: susurros, risas y pausas dramáticas.',
-    globalFeature: '03 / GLOBAL',
-    omniLingual: 'Omni-Lingual',
-    omniLingualDesc: 'Soporte nativo para 40+ idiomas con preservación de acento y dialecto local.',
-    startApiTrial: 'INICIAR PRUEBA API',
-    getApiKeyCta: 'OBTENER API KEY →',
-    architecture: 'Arquitectura',
-    beyondText: 'MÁS ALLÁ DEL TEXTO.',
-    waveformGeneration: 'Generación de Forma de Onda',
-    waveformDesc: 'No concatenamos sílabas. Generamos ondas de audio completas pixel a pixel, logrando una textura orgánica.',
-    contextAware: 'Consciente del Contexto',
-    contextAwareDesc: 'El modelo entiende lo que lee. Sabe cuándo subir la entonación en una pregunta o suavizarla en una disculpa.',
-    github: 'GITHUB',
-    discord: 'DISCORD',
-    status: 'ESTADO',
-    footer: '© 2024 Aura Intelligence. Sistema operacional.',
+    demoTitle: 'Experimenta la Calidad',
+    demoDesc: 'Escucha muestras generadas en tiempo real por nuestro motor neural v4.0.',
+    feature1Title: 'Clonación Instantánea',
+    feature1Desc: 'Solo necesitas 3 segundos de audio para clonar cualquier voz con alta fidelidad.',
+    feature2Title: 'Latencia Ultra Baja',
+    feature2Desc: 'Generación de audio en menos de 50ms para aplicaciones conversacionales en tiempo real.',
+    feature3Title: 'Soporte Multilingüe',
+    feature3Desc: 'El modelo entiende y sintetiza en más de 30 idiomas con acento nativo.',
+    feature4Title: 'API Robusta',
+    feature4Desc: 'Integra nuestras voces en tu aplicación con pocas líneas de código.',
+    readyToBuild: '¿Listo para Construir?',
+    joinCommunity: 'Únete a miles de desarrolladores usando Aura.',
+    accessTerminal: 'Acceder a la Terminal',
+    welcomeBack: 'Bienvenido de nuevo',
+    signInDesc: 'Ingresa tus credenciales para acceder al sistema.',
+    signUpDesc: 'Solicita acceso anticipado a la plataforma.',
+    fullName: 'Nombre Completo',
+    email: 'Correo Electrónico',
+    password: 'Contraseña',
+    continue: 'CONTINUAR',
+    requestAccess: 'SOLICITAR ACCESO',
+    noAccount: '¿No tienes cuenta?',
+    haveAccount: '¿Ya tienes cuenta?',
+    signIn: 'INICIAR SESIÓN'
   },
   en: {
-    demo: 'Demo',
-    features: 'Features',
-    api: 'API',
-    signIn: 'Sign In',
-    getApiKey: 'Get API Key',
-    welcomeBack: 'WELCOME BACK',
-    accessTerminal: 'ACCESS TERMINAL',
-    signInDesc: 'Enter your credentials to access the neural core.',
-    signUpDesc: 'Initialize your workspace and get your API key.',
-    fullName: 'Full Name',
-    email: 'name@company.com',
-    password: 'Password',
-    authenticate: 'Authenticate',
-    initializeAccount: 'Initialize Account',
-    createAccount: 'CREATE ACCOUNT',
-    alreadyHaveAccount: 'ALREADY HAVE ACCOUNT?',
-    version: 'V2.0 STABLE',
-    latency: 'LATENCY: 12ms',
-    sonicPresence: 'PRESENCE',
-    engine: 'ENGINE.',
-    heroDesc: 'Hyper-realistic neural synthesis. Indistinguishable from human voice. Designed for infinite conversations.',
-    voiceSample: 'VOICE SAMPLE: "AURA"',
+    heroTitle: 'Neural Voice Synthesis for the Next Generation',
+    heroDesc: 'Hyper-realistic voice cloning and text-to-voice synthesis with ultra-low latency. Designed for developers and creators.',
+    startNow: 'START NOW',
+    documentation: 'DOCUMENTATION',
+    features: 'FEATURES',
+    pricing: 'PRICING',
+    showcase: 'SHOWCASE',
+    status: 'STATUS: ONLINE',
+    copyright: '© 2024 AURA VOICE SYSTEMS.',
+    rights: 'ALL RIGHTS RESERVED.',
+    privacy: 'PRIVACY',
+    terms: 'TERMS',
+    contact: 'CONTACT',
     scrollToListen: 'SCROLL TO LISTEN',
-    systemCapabilities: 'SYSTEM CAPABILITIES',
-    neuralArchitecture: '[ NEURAL ARCHITECTURE ]',
-    latencyFeature: '01 / LATENCY',
-    realtimeCore: 'Real-time Core',
-    realtimeDesc: 'Processing in <50ms for fluid and uninterrupted conversations.',
-    emotionFeature: '02 / EMOTION',
-    adaptiveTone: 'Adaptive Tone',
-    adaptiveToneDesc: 'AI detects context and adjusts tone: whispers, laughter, and dramatic pauses.',
-    globalFeature: '03 / GLOBAL',
-    omniLingual: 'Omni-Lingual',
-    omniLingualDesc: 'Native support for 40+ languages with accent and local dialect preservation.',
-    startApiTrial: 'START API TRIAL',
-    getApiKeyCta: 'GET API KEY →',
-    architecture: 'Architecture',
-    beyondText: 'BEYOND TEXT.',
-    waveformGeneration: 'Waveform Generation',
-    waveformDesc: 'We don\'t concatenate syllables. We generate complete audio waves pixel by pixel, achieving organic texture.',
-    contextAware: 'Context Aware',
-    contextAwareDesc: 'The model understands what it reads. It knows when to raise intonation in a question or soften it in an apology.',
-    github: 'GITHUB',
-    discord: 'DISCORD',
-    status: 'STATUS',
-    footer: '© 2024 Aura Intelligence. System operational.',
+    demoTitle: 'Experience the Quality',
+    demoDesc: 'Listen to samples generated in real-time by our v4.0 neural engine.',
+    feature1Title: 'Instant Cloning',
+    feature1Desc: 'You only need 3 seconds of audio to clone any voice with high fidelity.',
+    feature2Title: 'Ultra Low Latency',
+    feature2Desc: 'Audio generation in less than 50ms for real-time conversational applications.',
+    feature3Title: 'Multilingual Support',
+    feature3Desc: 'The model understands and synthesizes in over 30 languages with native accent.',
+    feature4Title: 'Robust API',
+    feature4Desc: 'Integrate our voices into your application with just a few lines of code.',
+    readyToBuild: 'Ready to Build?',
+    joinCommunity: 'Join thousands of developers using Aura.',
+    accessTerminal: 'Access Kernel',
+    welcomeBack: 'Welcome Back',
+    signInDesc: 'Enter your credentials to access the system.',
+    signUpDesc: 'Request early access to the platform.',
+    fullName: 'Full Name',
+    email: 'Email Address',
+    password: 'Password',
+    continue: 'CONTINUE',
+    requestAccess: 'REQUEST ACCESS',
+    noAccount: 'Don\'t have an account?',
+    haveAccount: 'Already have an account?',
+    signIn: 'SIGN IN'
   }
 };
 
@@ -108,370 +95,298 @@ export default function LandingPage() {
   const router = useRouter();
   const [theme, setTheme] = useState('light');
   const [lang, setLang] = useState<'es' | 'en'>('es');
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isPlaying, setIsPlaying] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
-  const [authMode, setAuthMode] = useState('signin');
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [scrollProgress, setScrollProgress] = useState(0);
+
+  // Auth State
+  const [username, setUsername] = useState('');
+  const [password, setPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
 
   const t = translations[lang];
 
-  const toggleTheme = () => {
-    setTheme(prev => prev === 'light' ? 'dark' : 'light');
-  };
+  useEffect(() => {
+    const handleScroll = () => {
+      const scrolled = window.scrollY;
+      const maxScroll = document.documentElement.scrollHeight - window.innerHeight;
+      setScrollProgress(scrolled / maxScroll);
+    };
+    window.addEventListener('scroll', handleScroll);
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
-  const toggleLang = () => {
-    setLang(prev => prev === 'es' ? 'en' : 'es');
-  };
+  const toggleTheme = () => setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  const toggleLang = () => setLang(prev => prev === 'es' ? 'en' : 'es');
 
   const scrollTo = (id: string) => {
-    setIsMenuOpen(false);
-    const element = document.getElementById(id);
-    if (element) {
-      element.scrollIntoView({ behavior: 'smooth' });
-    }
+    document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
   };
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginError('');
+    if (!username || !password) {
+      setLoginError('Credenciales requeridas');
+      return;
+    }
+    // Set Auth
+    localStorage.setItem('voice_auth', btoa(`${username}:${password}`));
     router.push('/dashboard');
   };
 
-  const themeClasses = theme === 'light'
-    ? 'bg-[#f0f0f0] text-neutral-900 selection:bg-neutral-900 selection:text-white'
-    : 'bg-[#0a0a0a] text-neutral-100 selection:bg-white selection:text-black';
-
-  const cardClasses = theme === 'light'
-    ? 'bg-white border-neutral-200 hover:border-neutral-400'
-    : 'bg-[#111] border-neutral-800 hover:border-neutral-600';
-
+  const themeClasses = theme === 'light' ? 'bg-[#f0f0f0] text-neutral-900' : 'bg-[#0a0a0a] text-neutral-100';
   const borderClass = theme === 'light' ? 'border-neutral-300' : 'border-neutral-800';
   const textSubtle = theme === 'light' ? 'text-neutral-500' : 'text-neutral-500';
-  const inputClasses = theme === 'light'
-    ? 'bg-[#f8f8f8] border-neutral-300 focus:border-neutral-900 placeholder:text-neutral-400'
-    : 'bg-[#1a1a1a] border-neutral-800 focus:border-white placeholder:text-neutral-600';
-
-  const Visualizer = ({ playing }: { playing: boolean }) => (
-    <div className="flex items-center justify-center gap-1 h-12">
-      {[...Array(8)].map((_, i) => (
-        <div
-          key={i}
-          className={`w-1 md:w-1.5 rounded-full transition-all duration-300 ${theme === 'light' ? 'bg-neutral-900' : 'bg-white'}`}
-          style={{
-            height: playing ? `${Math.random() * 100}%` : '20%',
-            animation: playing ? `bounce 0.5s infinite ${i * 0.1}s` : 'none'
-          }}
-        />
-      ))}
-    </div>
-  );
+  const cardClasses = theme === 'light' ? 'bg-white border-neutral-200 hover:border-black' : 'bg-[#111] border-neutral-800 hover:border-white';
+  const buttonHighlight = theme === 'light' ? 'bg-black text-white hover:bg-neutral-800' : 'bg-white text-black hover:bg-neutral-200';
 
   return (
-    <div className={`min-h-screen transition-colors duration-500 ease-in-out font-sans ${themeClasses} flex flex-col overflow-x-hidden relative`}>
+    <div className={`min-h-screen font-sans transition-colors duration-500 selection:bg-emerald-500/30 ${themeClasses}`}>
 
-      {/* Navigation Bar */}
-      <nav className={`fixed top-0 left-0 w-full z-50 border-b ${borderClass} backdrop-blur-md bg-opacity-80 ${theme === 'light' ? 'bg-[#f0f0f0]/80' : 'bg-[#0a0a0a]/80'}`}>
-        <div className="w-full px-6 h-20 flex items-center justify-between">
-          <div className="flex items-center gap-2 font-bold text-xl tracking-tighter cursor-pointer" onClick={() => scrollTo('home')}>
+      {/* Navbar */}
+      <nav className={`fixed top-0 left-0 w-full z-50 border-b transition-colors duration-500 backdrop-blur-md bg-opacity-80 ${borderClass} ${theme === 'light' ? 'bg-[#f0f0f0]/80' : 'bg-[#0a0a0a]/80'}`}>
+        <div className="w-full px-6 md:px-12 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-2 font-bold text-xl tracking-tighter">
             <div className={`w-8 h-8 flex items-center justify-center border ${borderClass} rounded-full`}>
               <Waves size={16} />
             </div>
             <span>AURA_VOICE</span>
           </div>
 
-          <div className="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide">
-            {[t.demo, t.features, t.api].map((item) => (
-              <button
-                key={item}
-                onClick={() => scrollTo(item.toLowerCase())}
-                className="hover:opacity-50 transition-opacity uppercase"
-              >
-                {item}
-              </button>
-            ))}
+          <div className="flex items-center gap-6">
+            <div className="hidden md:flex items-center gap-6 text-xs font-bold tracking-widest">
+              <button onClick={() => scrollTo('features')} className="hover:text-emerald-500 transition-colors uppercase">{t.features}</button>
+              <button onClick={() => scrollTo('showcase')} className="hover:text-emerald-500 transition-colors uppercase">{t.showcase}</button>
+              <button onClick={() => scrollTo('pricing')} className="opacity-40 cursor-not-allowed uppercase">{t.pricing}</button>
+            </div>
 
-            <div className={`h-4 w-[1px] ${theme === 'light' ? 'bg-neutral-300' : 'bg-neutral-800'}`}></div>
+            <div className={`h-4 w-[1px] ${borderClass} hidden md:block`}></div>
 
-            <button
-              onClick={() => { setShowAuth(true); setAuthMode('signin'); }}
-              className="hover:opacity-50 transition-opacity uppercase"
-            >
-              {t.signIn}
+            <button onClick={toggleLang} className={`flex items-center gap-1 text-xs font-bold uppercase hover:opacity-60 transition-opacity`}>
+              {lang}
             </button>
 
-            <button
-              onClick={() => { setShowAuth(true); setAuthMode('signup'); }}
-              className={`px-4 py-2 rounded-full text-xs font-bold uppercase transition-all hover:scale-105 ${theme === 'light' ? 'bg-black text-white' : 'bg-white text-black'}`}
-            >
-              {t.getApiKey}
-            </button>
-
-            <button
-              onClick={toggleLang}
-              className={`p-2 rounded-full border ${borderClass} hover:scale-105 transition-transform flex items-center gap-1`}
-            >
-              <Globe size={16} />
-              <span className="text-xs font-bold">{lang.toUpperCase()}</span>
-            </button>
-
-            <button
-              onClick={toggleTheme}
-              className={`p-2 rounded-full border ${borderClass} hover:scale-105 transition-transform`}
-            >
+            <button onClick={toggleTheme} className="hover:opacity-60 transition-opacity">
               {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
             </button>
-          </div>
 
-          <div className="md:hidden flex items-center gap-4">
-            <button onClick={toggleLang} className={`p-2 rounded-full border ${borderClass}`}>
-              <Globe size={16} />
-            </button>
-            <button onClick={toggleTheme} className={`p-2 rounded-full border ${borderClass}`}>
-              {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
-            </button>
-            <button onClick={() => setIsMenuOpen(!isMenuOpen)}>
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            <button
+              onClick={() => setShowAuth(true)}
+              className={`px-5 py-2 rounded-full text-xs font-bold tracking-widest transition-transform hover:scale-105 active:scale-95 uppercase ${buttonHighlight}`}
+            >
+              {t.startNow}
             </button>
           </div>
         </div>
       </nav>
 
-      {/* Auth Modal */}
-      {showAuth && (
-        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm bg-black/20 dark:bg-black/50">
-          <div
-            className="absolute inset-0"
-            onClick={() => setShowAuth(false)}
-          ></div>
+      {/* Hero Section */}
+      <section className="relative min-h-screen flex items-center justify-center pt-20 overflow-hidden">
+        <div className="w-full max-w-7xl px-6 md:px-12 grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
 
-          <div className={`relative w-full max-w-md p-8 md:p-12 shadow-2xl transition-all duration-300 ${theme === 'light' ? 'bg-white' : 'bg-[#111] border border-neutral-800'}`}>
-            <button
-              onClick={() => setShowAuth(false)}
-              className="absolute top-6 right-6 opacity-50 hover:opacity-100"
-            >
-              <X size={20} />
-            </button>
-
-            <div className="mb-8">
-              <div className={`w-10 h-10 flex items-center justify-center border ${borderClass} rounded-full mb-4`}>
-                <Waves size={20} />
-              </div>
-              <h2 className="text-3xl font-bold tracking-tighter mb-2">
-                {authMode === 'signin' ? t.welcomeBack : t.accessTerminal}
-              </h2>
-              <p className={`text-sm ${textSubtle}`}>
-                {authMode === 'signin' ? t.signInDesc : t.signUpDesc}
-              </p>
+          <div className="space-y-8 z-10">
+            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border border-emerald-500/20 bg-emerald-500/5 text-emerald-500 text-[10px] font-bold tracking-widest uppercase animate-pulse">
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+              {t.status}
             </div>
 
-            <form className="flex flex-col gap-4" onSubmit={handleLogin}>
-              {authMode === 'signup' && (
-                <div className="relative group">
-                  <User className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${textSubtle}`} />
-                  <input
-                    type="text"
-                    placeholder={t.fullName}
-                    className={`w-full p-4 pl-12 text-sm outline-none transition-colors border ${inputClasses}`}
-                  />
-                </div>
+            <h1 className="text-5xl md:text-7xl font-bold tracking-tighter leading-[0.9]">
+              {lang === 'en' ? (
+                <>NEURAL <span className="text-emerald-500">VOICE</span><br />SYNTHESIS</>
+              ) : (
+                <>SÍNTESIS <span className="text-emerald-500">NEURAL</span><br />DE VOZ</>
               )}
+            </h1>
 
-              <div className="relative group">
-                <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${textSubtle}`} />
-                <input
-                  type="email"
-                  placeholder={t.email}
-                  className={`w-full p-4 pl-12 text-sm outline-none transition-colors border ${inputClasses}`}
-                />
-              </div>
+            <p className={`text-lg md:text-xl max-w-md leading-relaxed ${textSubtle}`}>
+              {t.heroDesc}
+            </p>
 
-              <div className="relative group">
-                <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${textSubtle}`} />
-                <input
-                  type="password"
-                  placeholder={t.password}
-                  className={`w-full p-4 pl-12 text-sm outline-none transition-colors border ${inputClasses}`}
-                />
-              </div>
-
-              <button type="submit" className={`mt-4 py-4 px-6 w-full font-bold text-sm tracking-widest uppercase flex items-center justify-center gap-2 transition-all hover:opacity-90 ${theme === 'light' ? 'bg-black text-white' : 'bg-white text-black'}`}>
-                {authMode === 'signin' ? t.authenticate : t.initializeAccount}
-                <ArrowRight size={16} />
-              </button>
-            </form>
-
-            <div className="mt-8 flex justify-between items-center text-xs font-mono">
+            <div className="flex flex-wrap gap-4">
               <button
-                type="button"
-                onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
-                className="hover:underline opacity-60 hover:opacity-100"
+                onClick={() => setShowAuth(true)}
+                className={`px-8 py-4 rounded-full font-bold text-sm tracking-widest flex items-center gap-2 transition-all hover:scale-105 uppercase ${buttonHighlight}`}
               >
-                {authMode === 'signin' ? t.createAccount : t.alreadyHaveAccount}
+                {t.startNow} <ArrowRight size={16} />
+              </button>
+              <button className={`px-8 py-4 rounded-full font-bold text-sm tracking-widest border border-current hover:bg-current hover:bg-opacity-5 transition-all uppercase flex items-center gap-2`}>
+                <Code size={16} /> API DOCS
               </button>
             </div>
+
+            <div className="flex items-center gap-8 pt-8 opacity-40 grayscale hover:grayscale-0 transition-all duration-500">
+              {/* Trusted by placeholders */}
+              <div className="h-6 w-20 bg-current opacity-20 rounded" />
+              <div className="h-6 w-20 bg-current opacity-20 rounded" />
+              <div className="h-6 w-20 bg-current opacity-20 rounded" />
+            </div>
+          </div>
+
+          {/* Interactive Visual/Demo */}
+          <div className="relative h-[500px] w-full hidden lg:flex items-center justify-center">
+            <div className={`relative w-80 aspect-[9/16] rounded-3xl border-8 shadow-2xl overflow-hidden bg-black ${theme === 'light' ? 'border-neutral-900' : 'border-neutral-800'}`}>
+              {/* Fake UI */}
+              <div className="absolute top-0 left-0 w-full p-6 text-white z-10">
+                <div className="flex justify-between items-center mb-8">
+                  <Menu size={20} />
+                  <span className="font-bold tracking-widest text-xs">AURA</span>
+                </div>
+                <div className="space-y-4">
+                  <div className="p-4 bg-white/10 rounded-2xl backdrop-blur-md border border-white/10">
+                    <div className="h-2 w-12 bg-emerald-500 rounded-full mb-2"></div>
+                    <p className="text-xs opacity-80 leading-relaxed">System v4.0 online. Latency optimal.</p>
+                  </div>
+                  <div className="flex gap-2">
+                    {[1, 2, 3, 4, 5].map(i => (
+                      <div key={i} className="h-12 flex-1 bg-white/5 rounded-lg animate-pulse" style={{ animationDelay: `${i * 100}ms` }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Abstract Waves */}
+              <div className="absolute inset-0 opacity-50">
+                {/* Placeholder for complex webgl wave if we had one */}
+                <div className={`w-full h-full bg-gradient-to-t from-emerald-900/50 to-transparent`} />
+              </div>
+
+              {/* Play Button Overlay */}
+              <div className="absolute bottom-12 left-0 w-full flex justify-center">
+                <button className="w-16 h-16 bg-white text-black rounded-full flex items-center justify-center hover:scale-110 transition-transform shadow-lg shadow-emerald-500/20">
+                  <Play size={24} fill="currentColor" className="ml-1" />
+                </button>
+              </div>
+            </div>
+
+            {/* Background Decorative Rings */}
+            <div className={`absolute -z-10 w-[600px] h-[600px] border border-current rounded-full opacity-5 animate-[spin_60s_linear_infinite]`} style={{ borderStyle: 'dashed' }} />
+            <div className={`absolute -z-10 w-[450px] h-[450px] border border-current rounded-full opacity-10 animate-[spin_40s_linear_infinite_reverse]`} />
+          </div>
+
+        </div>
+
+        {/* Scroll Indicator */}
+        <div
+          onClick={() => scrollTo('features')}
+          className="absolute bottom-10 right-6 md:right-10 flex flex-col items-end gap-2 text-xs font-mono opacity-60 cursor-pointer hover:opacity-100 transition-opacity"
+        >
+          <span>{t.scrollToListen}</span>
+          <div className={`w-[1px] h-24 ${theme === 'light' ? 'bg-black' : 'bg-white'}`} />
+        </div>
+      </section>
+
+      {/* Features Grid */}
+      <section id="features" className={`py-32 px-6 md:px-12 ${theme === 'light' ? 'bg-white' : 'bg-[#0f0f0f]'}`}>
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+            {[
+              { t: t.feature1Title, d: t.feature1Desc, i: User },
+              { t: t.feature2Title, d: t.feature2Desc, i: Zap },
+              { t: t.feature3Title, d: t.feature3Desc, i: Globe },
+              { t: t.feature4Title, d: t.feature4Desc, i: Code },
+            ].map((f, i) => (
+              <div key={i} className={`p-8 border rounded-xl transition-all duration-300 group hover:-translate-y-2 ${cardClasses}`}>
+                <f.i size={32} className="mb-6 opacity-40 group-hover:opacity-100 group-hover:text-emerald-500 transition-opacity" />
+                <h3 className="text-lg font-bold mb-2">{f.t}</h3>
+                <p className={`text-sm leading-relaxed ${textSubtle}`}>{f.d}</p>
+              </div>
+            ))}
           </div>
         </div>
-      )}
+      </section>
 
-      {/* Main Content */}
-      <main className="flex-grow pt-20">
+      {/* Showcase Section */}
+      <section id="showcase" className={`py-32 px-6 md:px-12 border-t ${borderClass}`}>
+        <div className="max-w-4xl mx-auto text-center mb-16">
+          <h2 className="text-4xl font-bold tracking-tighter mb-4">{t.demoTitle}</h2>
+          <p className={`text-lg ${textSubtle}`}>{t.demoDesc}</p>
+        </div>
 
-        {/* Hero Section */}
-        <section id="home" className="min-h-[90vh] flex flex-col justify-center px-6 w-full relative overflow-hidden">
-          <div className="absolute top-1/4 right-0 w-64 h-64 md:w-96 md:h-96 rounded-full blur-3xl opacity-20 bg-emerald-500 animate-pulse"></div>
-          <div className="absolute bottom-0 left-10 w-72 h-72 rounded-full blur-3xl opacity-20 bg-blue-500 animate-pulse delay-700"></div>
-
-          <div className="z-10 max-w-7xl mx-auto w-full">
-            <div className="max-w-4xl relative">
-              <div className="mb-6 flex items-center gap-4">
-                <span className={`px-3 py-1 rounded-full text-xs font-mono border ${borderClass}`}>{t.version}</span>
-                <span className="text-xs font-mono opacity-60">{t.latency}</span>
-              </div>
-
-              <h1 className="text-6xl md:text-8xl lg:text-9xl font-bold tracking-tighter leading-[0.9] mb-8">
-                SONIC<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-neutral-500 to-neutral-900 dark:from-neutral-400 dark:to-white">{t.sonicPresence}</span><br />
-                {t.engine}
-              </h1>
-              <p className={`text-xl md:text-2xl max-w-xl leading-relaxed mb-10 ${textSubtle}`}>
-                {t.heroDesc}
-              </p>
-
-              <div className={`inline-flex items-center gap-6 p-2 pr-8 rounded-full border ${borderClass} ${theme === 'light' ? 'bg-white/50' : 'bg-black/50'} backdrop-blur-sm`}>
-                <button
-                  onClick={() => setIsPlaying(!isPlaying)}
-                  className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${isPlaying ? 'bg-red-500 text-white' : (theme === 'light' ? 'bg-black text-white' : 'bg-white text-black')}`}
-                >
-                  {isPlaying ? <div className="w-4 h-4 bg-white rounded-sm" /> : <Play size={24} fill="currentColor" className="ml-1" />}
-                </button>
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs font-mono opacity-60">{t.voiceSample}</span>
-                  <Visualizer playing={isPlaying} />
+        <div className="max-w-3xl mx-auto space-y-4">
+          {[1, 2, 3].map((i) => (
+            <div key={i} className={`p-6 border rounded-xl flex items-center justify-between transition-colors hover:bg-neutral-500/5 ${cardClasses}`}>
+              <div className="flex items-center gap-4">
+                <div className={`w-12 h-12 rounded-full flex items-center justify-center font-bold ${theme === 'light' ? 'bg-neutral-200' : 'bg-neutral-800'}`}>
+                  {i === 1 ? 'ES' : i === 2 ? 'EN' : 'FR'}
+                </div>
+                <div>
+                  <div className="font-bold text-sm">Voice Sample 0{i}</div>
+                  <div className="text-xs opacity-40 font-mono">Neural Model v4.1 • Stereo • 48kHz</div>
                 </div>
               </div>
+              <button className={`w-10 h-10 rounded-full flex items-center justify-center border transition-all hover:scale-110 ${theme === 'light' ? 'border-black hover:bg-black hover:text-white' : 'border-white hover:bg-white hover:text-black'}`}>
+                <Play size={14} fill="currentColor" />
+              </button>
             </div>
-          </div>
-
-          <div className="absolute bottom-10 right-6 md:right-10 flex flex-col items-end gap-2 text-xs font-mono opacity-60 cursor-pointer hover:opacity-100 transition-opacity" onClick={() => scrollTo('features')}>
-            <span>{t.scrollToListen}</span>
-            <div className={`w-[1px] h-24 ${theme === 'light' ? 'bg-black' : 'bg-white'}`}></div>
-          </div>
-        </section>
-
-        {/* Features Section */}
-        <section id="features" className={`py-24 px-6 border-t ${borderClass}`}>
-          <div className="max-w-7xl mx-auto w-full">
-            <div className="flex justify-between items-end mb-16">
-              <h2 className="text-4xl md:text-6xl font-bold tracking-tight">{t.systemCapabilities}</h2>
-              <span className={`hidden md:block font-mono text-sm ${textSubtle}`}>{t.neuralArchitecture}</span>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-neutral-200 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-800">
-              {/* Feature 1 */}
-              <div className={`group relative aspect-[16/9] p-8 flex flex-col justify-between transition-all duration-300 ${cardClasses}`}>
-                <div className="flex justify-between items-start">
-                  <span className="font-mono text-xs">{t.latencyFeature}</span>
-                  <Activity className="opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                </div>
-                <div className="relative z-10">
-                  <div className="mb-4 w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
-                    <Cpu size={24} className="text-emerald-500" />
-                  </div>
-                  <h3 className="text-2xl font-bold mb-2">{t.realtimeCore}</h3>
-                  <p className={`text-sm ${textSubtle}`}>{t.realtimeDesc}</p>
-                </div>
-                <div className={`absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500 ${theme === 'light' ? 'bg-black' : 'bg-white'}`}></div>
-              </div>
-
-              {/* Feature 2 */}
-              <div className={`group relative aspect-[16/9] p-8 flex flex-col justify-between transition-all duration-300 ${cardClasses}`}>
-                <div className="flex justify-between items-start">
-                  <span className="font-mono text-xs">{t.emotionFeature}</span>
-                  <Activity className="opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                </div>
-                <div className="relative z-10">
-                  <div className="mb-4 w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center">
-                    <Mic size={24} className="text-blue-500" />
-                  </div>
-                  <h3 className="text-2xl font-bold mb-2">{t.adaptiveTone}</h3>
-                  <p className={`text-sm ${textSubtle}`}>{t.adaptiveToneDesc}</p>
-                </div>
-                <div className={`absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500 ${theme === 'light' ? 'bg-black' : 'bg-white'}`}></div>
-              </div>
-
-              {/* Feature 3 */}
-              <div className={`group relative aspect-[16/9] p-8 flex flex-col justify-between transition-all duration-300 ${cardClasses}`}>
-                <div className="flex justify-between items-start">
-                  <span className="font-mono text-xs">{t.globalFeature}</span>
-                  <Activity className="opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
-                </div>
-                <div className="relative z-10">
-                  <div className="mb-4 w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center">
-                    <Languages size={24} className="text-purple-500" />
-                  </div>
-                  <h3 className="text-2xl font-bold mb-2">{t.omniLingual}</h3>
-                  <p className={`text-sm ${textSubtle}`}>{t.omniLingualDesc}</p>
-                </div>
-                <div className={`absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500 ${theme === 'light' ? 'bg-black' : 'bg-white'}`}></div>
-              </div>
-
-              {/* Feature 4 - CTA */}
-              <div
-                onClick={() => { setShowAuth(true); setAuthMode('signup'); }}
-                className={`group relative aspect-[16/9] p-8 flex flex-col justify-center items-center text-center transition-all duration-300 cursor-pointer ${cardClasses}`}
-              >
-                <h3 className="text-4xl font-bold tracking-tighter group-hover:scale-110 transition-transform duration-500">{t.startApiTrial}</h3>
-                <div className={`mt-4 w-16 h-1 bg-current transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300`}></div>
-                <span className="font-mono text-xs mt-4 opacity-60">{t.getApiKeyCta}</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* Technical Specs */}
-        <section id="api" className={`py-24 px-6 bg-current ${theme === 'light' ? 'text-white bg-neutral-900' : 'text-black bg-neutral-100'}`}>
-          <div className="max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-12 gap-12">
-            <div className="md:col-span-4">
-              <span className="font-mono text-xs tracking-widest uppercase border-b border-current pb-2 mb-8 block opacity-60">{t.architecture}</span>
-              <h2 className="text-3xl md:text-5xl font-bold leading-tight">{t.beyondText}</h2>
-            </div>
-            <div className="md:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-12">
-              <div>
-                <h4 className="text-xl font-bold mb-4 flex items-center gap-2"><Waves size={20} /> {t.waveformGeneration}</h4>
-                <p className="opacity-80 leading-relaxed">{t.waveformDesc}</p>
-              </div>
-              <div>
-                <h4 className="text-xl font-bold mb-4 flex items-center gap-2"><Cpu size={20} /> {t.contextAware}</h4>
-                <p className="opacity-80 leading-relaxed">{t.contextAwareDesc}</p>
-              </div>
-            </div>
-          </div>
-        </section>
-      </main>
+          ))}
+        </div>
+      </section>
 
       {/* Footer */}
-      <footer className={`py-12 px-6 border-t ${borderClass}`}>
-        <div className="max-w-7xl mx-auto w-full flex flex-col md:flex-row justify-between items-center gap-6">
-          <div className="flex items-center gap-2 font-bold text-lg">
-            <Waves size={20} />
-            AURA_VOICE
-          </div>
-          <div className={`flex gap-8 text-sm font-mono ${textSubtle}`}>
-            <a href="#" className="hover:text-current transition-colors">{t.github}</a>
-            <a href="#" className="hover:text-current transition-colors">{t.discord}</a>
-            <a href="#" className="hover:text-current transition-colors">{t.status}</a>
-          </div>
-          <div className={`text-xs ${textSubtle}`}>
-            {t.footer}
+      <footer className={`py-12 px-6 md:px-12 border-t ${borderClass}`}>
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6 text-xs font-bold tracking-widest opacity-60">
+          <div>{t.copyright}</div>
+          <div className="flex gap-8">
+            <a href="#" className="hover:opacity-100">{t.privacy}</a>
+            <a href="#" className="hover:opacity-100">{t.terms}</a>
+            <a href="#" className="hover:opacity-100">{t.contact}</a>
           </div>
         </div>
       </footer>
 
-      <style jsx global>{`
-        @keyframes bounce {
-          0%, 100% { height: 20%; }
-          50% { height: 100%; }
-        }
-      `}</style>
+      {/* Login Modal */}
+      {showAuth && (
+        <div className="fixed inset-0 z-[100] backdrop-blur-md bg-black/60 flex items-center justify-center p-6 animate-in fade-in duration-300">
+          <div className={`w-full max-w-md p-8 rounded-2xl shadow-2xl relative overflow-hidden ${theme === 'light' ? 'bg-white' : 'bg-[#111] border border-neutral-800'}`}>
+
+            <button onClick={() => setShowAuth(false)} className="absolute top-4 right-4 p-2 rounded-full hover:bg-neutral-500/10 transition-colors">
+              <X size={20} />
+            </button>
+
+            <div className="mb-8 text-center">
+              <div className={`w-12 h-12 mx-auto mb-4 rounded-full flex items-center justify-center border ${theme === 'light' ? 'border-neutral-200' : 'border-neutral-800'}`}>
+                <Waves size={24} />
+              </div>
+              <h2 className="text-2xl font-bold tracking-tight mb-2">Bienvenido</h2>
+              <p className="text-sm opacity-60">Ingresa tus credenciales para acceder.</p>
+            </div>
+
+            <form onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-xs font-mono uppercase opacity-60 mb-2">Usuario</label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={e => setUsername(e.target.value)}
+                  className={`w-full p-4 rounded-lg outline-none border transition-colors ${theme === 'light' ? 'bg-neutral-50 border-neutral-200 focus:border-black' : 'bg-neutral-900 border-neutral-800 focus:border-white'}`}
+                  placeholder="admin"
+                />
+              </div>
+              <div>
+                <label className="block text-xs font-mono uppercase opacity-60 mb-2">Contraseña</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={e => setPassword(e.target.value)}
+                  className={`w-full p-4 rounded-lg outline-none border transition-colors ${theme === 'light' ? 'bg-neutral-50 border-neutral-200 focus:border-black' : 'bg-neutral-900 border-neutral-800 focus:border-white'}`}
+                  placeholder="••••••••"
+                />
+              </div>
+
+              {loginError && <p className="text-xs text-red-500 font-mono text-center">{loginError}</p>}
+
+              <button
+                type="submit"
+                className={`w-full py-4 rounded-lg font-bold text-sm uppercase tracking-widest transition-transform hover:scale-[1.02] active:scale-[0.98] ${buttonHighlight}`}
+              >
+                Iniciar Sesión
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
