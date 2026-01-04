@@ -1,8 +1,9 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
-import { Moon, Sun, Mic, Activity, Cpu, Languages, Play, Waves, X, Menu, ArrowRight, User, Lock, Mail, Globe, Pause } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Moon, Sun, Mic, Activity, Cpu, Languages, Play, X, Menu, ArrowRight, User, Lock, Mail, Globe, Pause } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 
 // Translations
 const translations = {
@@ -12,6 +13,7 @@ const translations = {
     api: 'API',
     signIn: 'Iniciar Sesión',
     getApiKey: 'Obtener API Key',
+    comingSoon: 'PRÓXIMAMENTE',
     welcomeBack: 'BIENVENIDO',
     accessTerminal: 'ACCESO AL TERMINAL',
     signInDesc: 'Ingresa tus credenciales para acceder al núcleo neuronal.',
@@ -23,7 +25,7 @@ const translations = {
     initializeAccount: 'Inicializar Cuenta',
     createAccount: 'CREAR CUENTA',
     alreadyHaveAccount: '¿YA TIENES CUENTA?',
-    version: 'V2.0 ESTABLE',
+    version: 'V1.0 ESTABLE',
     latency: 'LATENCIA: 12ms',
     sonicPresence: 'PRESENCIA',
     engine: 'SÓNICA.',
@@ -50,9 +52,10 @@ const translations = {
     contextAware: 'Consciente del Contexto',
     contextAwareDesc: 'El modelo entiende lo que lee. Sabe cuándo subir la entonación en una pregunta o suavizarla en una disculpa.',
     github: 'GITHUB',
-    discord: 'DISCORD',
-    status: 'ESTADO',
-    footer: '© 2024 Aura Intelligence. Sistema operacional.',
+    linkedin: 'LINKEDIN',
+    backend: 'Backend',
+    frontend: 'Frontend',
+    footer: '© {year} Aura Intelligence. Sistema operacional.',
     generatingVoice: 'GENERANDO VOZ...',
   },
   en: {
@@ -61,6 +64,7 @@ const translations = {
     api: 'API',
     signIn: 'Sign In',
     getApiKey: 'Get API Key',
+    comingSoon: 'COMING SOON',
     welcomeBack: 'WELCOME BACK',
     accessTerminal: 'ACCESS TERMINAL',
     signInDesc: 'Enter your credentials to access the neural core.',
@@ -72,7 +76,7 @@ const translations = {
     initializeAccount: 'Initialize Account',
     createAccount: 'CREATE ACCOUNT',
     alreadyHaveAccount: 'ALREADY HAVE ACCOUNT?',
-    version: 'V2.0 STABLE',
+    version: 'V1.0 STABLE',
     latency: 'LATENCY: 12ms',
     sonicPresence: 'PRESENCE',
     engine: 'ENGINE.',
@@ -99,9 +103,10 @@ const translations = {
     contextAware: 'Context Aware',
     contextAwareDesc: 'The model understands what it reads. It knows when to raise intonation in a question or soften it in an apology.',
     github: 'GITHUB',
-    discord: 'DISCORD',
-    status: 'STATUS',
-    footer: '© 2024 Aura Intelligence. System operational.',
+    linkedin: 'LINKEDIN',
+    backend: 'Backend',
+    frontend: 'Frontend',
+    footer: '© {year} Aura Intelligence. System operational.',
     generatingVoice: 'GENERATING VOICE...',
   }
 };
@@ -115,6 +120,7 @@ export default function LandingPage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [showAuth, setShowAuth] = useState(false);
   const [authMode, setAuthMode] = useState('signin');
+  const [showGitHubMenu, setShowGitHubMenu] = useState(false);
   const [barHeights, setBarHeights] = useState<number[]>(Array(8).fill(20));
 
   // Auth State
@@ -129,6 +135,23 @@ export default function LandingPage() {
   const animationRef = useRef<number | null>(null);
 
   const t = translations[lang];
+
+  // Close GitHub menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as HTMLElement;
+      if (showGitHubMenu && !target.closest('.github-menu-container')) {
+        setShowGitHubMenu(false);
+      }
+    };
+
+    if (showGitHubMenu) {
+      document.addEventListener('mousedown', handleClickOutside);
+      return () => {
+        document.removeEventListener('mousedown', handleClickOutside);
+      };
+    }
+  }, [showGitHubMenu]);
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'light' ? 'dark' : 'light');
@@ -329,22 +352,31 @@ export default function LandingPage() {
       <nav className={`fixed top-0 left-0 w-full z-50 border-b ${borderClass} backdrop-blur-md bg-opacity-80 ${theme === 'light' ? 'bg-[#f0f0f0]/80' : 'bg-[#0a0a0a]/80'}`}>
         <div className="w-full px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2 font-bold text-xl tracking-tighter cursor-pointer" onClick={() => scrollTo('home')}>
-            <div className={`w-8 h-8 flex items-center justify-center border ${borderClass} rounded-full`}>
-              <Waves size={16} />
+            <div className="w-16 h-16 flex items-center justify-center">
+              <Image src="/logo.png" alt="AURA_VOICE" width={64} height={64} className="object-contain" />
             </div>
             <span>AURA_VOICE</span>
           </div>
 
           <div className="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide">
-            {[t.demo, t.features, t.api].map((item) => (
-              <button
-                key={item}
-                onClick={() => scrollTo(item.toLowerCase())}
-                className="hover:opacity-50 transition-opacity uppercase"
-              >
-                {item}
-              </button>
-            ))}
+            <button
+              onClick={() => scrollTo('home')}
+              className="hover:opacity-50 transition-opacity uppercase"
+            >
+              {t.demo}
+            </button>
+            <button
+              onClick={() => scrollTo('features')}
+              className="hover:opacity-50 transition-opacity uppercase"
+            >
+              {t.features}
+            </button>
+            <button
+              onClick={() => scrollTo('api')}
+              className="hover:opacity-50 transition-opacity uppercase"
+            >
+              {t.api}
+            </button>
 
             <div className={`h-4 w-[1px] ${theme === 'light' ? 'bg-neutral-300' : 'bg-neutral-800'}`}></div>
 
@@ -356,10 +388,12 @@ export default function LandingPage() {
             </button>
 
             <button
-              onClick={() => { setShowAuth(true); setAuthMode('signup'); }}
-              className={`px-4 py-2 rounded-full text-xs font-bold uppercase transition-all hover:scale-105 ${theme === 'light' ? 'bg-black text-white' : 'bg-white text-black'}`}
+              disabled
+              className={`px-4 py-2 rounded-full text-xs font-bold uppercase transition-all relative ${theme === 'light' ? 'bg-neutral-300 text-neutral-500' : 'bg-neutral-700 text-neutral-400'} cursor-not-allowed opacity-60`}
+              title={t.comingSoon}
             >
               {t.getApiKey}
+              <span className="ml-2 text-[8px] px-1.5 py-0.5 rounded bg-red-500 text-white font-bold">{t.comingSoon}</span>
             </button>
 
             <button
@@ -409,8 +443,8 @@ export default function LandingPage() {
             </button>
 
             <div className="mb-8">
-              <div className={`w-10 h-10 flex items-center justify-center border ${borderClass} rounded-full mb-4`}>
-                <Waves size={20} />
+              <div className="w-20 h-20 flex items-center justify-center mb-4">
+                <Image src="/logo.png" alt="AURA_VOICE" width={80} height={80} className="object-contain" />
               </div>
               <h2 className="text-3xl font-bold tracking-tighter mb-2">
                 {authMode === 'signin' ? t.welcomeBack : t.accessTerminal}
@@ -491,9 +525,9 @@ export default function LandingPage() {
               </div>
 
               <h1 className="text-6xl md:text-8xl lg:text-9xl font-bold tracking-tighter leading-[0.9] mb-8">
-                SONIC<br />
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-neutral-500 to-neutral-900 dark:from-neutral-400 dark:to-white">{t.sonicPresence}</span><br />
-                {t.engine}
+                <span className="text-neutral-900 dark:text-neutral-100">SONIC</span><br />
+                <span className="text-neutral-500 dark:text-neutral-500">{t.sonicPresence}</span><br />
+                <span className="text-neutral-900 dark:text-neutral-100">{t.engine}</span>
               </h1>
               <p className={`text-xl md:text-2xl max-w-xl leading-relaxed mb-10 ${textSubtle}`}>
                 {t.heroDesc}
@@ -597,12 +631,14 @@ export default function LandingPage() {
 
               {/* Feature 4 - CTA */}
               <div
-                onClick={() => { setShowAuth(true); setAuthMode('signup'); }}
-                className={`group relative aspect-[16/9] p-8 flex flex-col justify-center items-center text-center transition-all duration-300 cursor-pointer ${cardClasses}`}
+                className={`group relative aspect-[16/9] p-8 flex flex-col justify-center items-center text-center transition-all duration-300 cursor-not-allowed opacity-60 ${cardClasses}`}
               >
-                <h3 className="text-4xl font-bold tracking-tighter group-hover:scale-110 transition-transform duration-500">{t.startApiTrial}</h3>
-                <div className={`mt-4 w-16 h-1 bg-current transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300`}></div>
-                <span className="font-mono text-xs mt-4 opacity-60">{t.getApiKeyCta}</span>
+                <div className="absolute top-4 right-4">
+                  <span className="text-[10px] px-2 py-1 rounded bg-red-500 text-white font-bold">{t.comingSoon}</span>
+                </div>
+                <h3 className="text-4xl font-bold tracking-tighter opacity-50">{t.startApiTrial}</h3>
+                <div className={`mt-4 w-16 h-1 bg-current opacity-30`}></div>
+                <span className="font-mono text-xs mt-4 opacity-40">{t.getApiKeyCta}</span>
               </div>
             </div>
           </div>
@@ -617,7 +653,10 @@ export default function LandingPage() {
             </div>
             <div className="md:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-12">
               <div>
-                <h4 className="text-xl font-bold mb-4 flex items-center gap-2"><Waves size={20} /> {t.waveformGeneration}</h4>
+                <h4 className="text-xl font-bold mb-4 flex items-center gap-2">
+                  <Image src="/logo.png" alt="AURA_VOICE" width={32} height={32} className="object-contain" />
+                  {t.waveformGeneration}
+                </h4>
                 <p className="opacity-80 leading-relaxed">{t.waveformDesc}</p>
               </div>
               <div>
@@ -633,16 +672,52 @@ export default function LandingPage() {
       <footer className={`py-12 px-6 border-t ${borderClass}`}>
         <div className="max-w-7xl mx-auto w-full flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2 font-bold text-lg">
-            <Waves size={20} />
+            <Image src="/logo.png" alt="AURA_VOICE" width={48} height={48} className="object-contain" />
             AURA_VOICE
           </div>
-          <div className={`flex gap-8 text-sm font-mono ${textSubtle}`}>
-            <a href="#" className="hover:text-current transition-colors">{t.github}</a>
-            <a href="#" className="hover:text-current transition-colors">{t.discord}</a>
-            <a href="#" className="hover:text-current transition-colors">{t.status}</a>
+          <div className={`flex gap-8 text-sm font-mono ${textSubtle} items-center`}>
+            <div className="relative github-menu-container">
+              <button
+                onClick={() => setShowGitHubMenu(!showGitHubMenu)}
+                className="hover:text-current transition-colors flex items-center gap-1"
+              >
+                {t.github}
+                <span className="text-xs">▼</span>
+              </button>
+              {showGitHubMenu && (
+                <div className={`absolute bottom-full left-0 mb-2 ${theme === 'light' ? 'bg-white border-neutral-200' : 'bg-[#111] border-neutral-800'} border rounded-lg shadow-lg min-w-[150px] z-50`}>
+                  <a
+                    href="https://github.com/SirAgus/backend_aura"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block px-4 py-2 hover:bg-neutral-500/10 transition-colors"
+                    onClick={() => setShowGitHubMenu(false)}
+                  >
+                    {t.backend}
+                  </a>
+                  <a
+                    href="https://github.com/SirAgus/Frontend_aura"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block px-4 py-2 hover:bg-neutral-500/10 transition-colors border-t border-neutral-200 dark:border-neutral-800"
+                    onClick={() => setShowGitHubMenu(false)}
+                  >
+                    {t.frontend}
+                  </a>
+                </div>
+              )}
+            </div>
+            <a 
+              href="https://www.linkedin.com/in/fernign/" 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="hover:text-current transition-colors"
+            >
+              {t.linkedin}
+            </a>
           </div>
           <div className={`text-xs ${textSubtle}`}>
-            {t.footer}
+            {t.footer.replace('{year}', new Date().getFullYear().toString())}
           </div>
         </div>
       </footer>
