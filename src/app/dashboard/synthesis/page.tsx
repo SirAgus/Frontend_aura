@@ -8,7 +8,15 @@ import DashboardSidebar from '../../../components/DashboardSidebar';
 
 // API Config
 const API_BASE = 'http://localhost:8000';
-const CREDENTIALS = btoa('admin:admin_password');
+
+const getAuth = () => {
+    const auth = localStorage.getItem('voice_auth');
+    if (!auth) {
+        window.location.href = '/';
+        return null;
+    }
+    return auth;
+};
 
 const translations = {
     es: {
@@ -35,6 +43,21 @@ const translations = {
         clear: 'LIMPIAR',
         usingFile: 'Usando archivo de referencia',
         removeFile: 'Quitar',
+        mode: 'MODO',
+        turbo: 'TURBO',
+        multilingual: 'MULTILINGÜE',
+        languageId: 'IDIOMA',
+        advancedSettings: 'CONFIGURACIÓN AVANZADA',
+        temperature: 'TEMPERATURA',
+        exaggeration: 'EXAGERACIÓN',
+        cfg: 'CFG',
+        repetitionPenalty: 'REPETICIÓN',
+        topP: 'TOP-P',
+        temperatureDesc: 'Más alto = más emoción y naturalidad',
+        exaggerationDesc: 'Más alto = más expresiva y energética',
+        cfgDesc: 'Más bajo = más libertad y naturalidad',
+        repetitionPenaltyDesc: 'Más alto = menos repeticiones',
+        topPDesc: 'Controla diversidad de palabras',
     },
     en: {
         statusOnline: 'STATUS: ONLINE',
@@ -60,6 +83,21 @@ const translations = {
         clear: 'CLEAR',
         usingFile: 'Using reference file',
         removeFile: 'Remove',
+        mode: 'MODE',
+        turbo: 'TURBO',
+        multilingual: 'MULTILINGUAL',
+        languageId: 'LANGUAGE',
+        advancedSettings: 'ADVANCED SETTINGS',
+        temperature: 'TEMPERATURE',
+        exaggeration: 'EXAGGERATION',
+        cfg: 'CFG',
+        repetitionPenalty: 'REPETITION',
+        topP: 'TOP-P',
+        temperatureDesc: 'Higher = more emotion and naturalness',
+        exaggerationDesc: 'Higher = more expressive and energetic',
+        cfgDesc: 'Lower = more freedom and naturalness',
+        repetitionPenaltyDesc: 'Higher = fewer repetitions',
+        topPDesc: 'Controls word diversity',
     }
 };
 
@@ -74,6 +112,18 @@ export default function SynthesisPage() {
     const [audioUrl, setAudioUrl] = useState<string | null>(null);
     const [error, setError] = useState<string | null>(null);
     const [isPlaying, setIsPlaying] = useState(false);
+
+    // New mode and language parameters
+    const [selectedMode, setSelectedMode] = useState<'turbo' | 'multilingual'>('multilingual');
+    const [languageId, setLanguageId] = useState('es');
+
+    // Advanced parameters
+    const [temperature, setTemperature] = useState(0.7);
+    const [exaggeration, setExaggeration] = useState(0.5);
+    const [cfg, setCfg] = useState(1.0);
+    const [repetitionPenalty, setRepetitionPenalty] = useState(2.0);
+    const [topP, setTopP] = useState(1.0);
+    const [showAdvanced, setShowAdvanced] = useState(false);
 
     // State for voices (now objects)
     const [availableVoices, setAvailableVoices] = useState<any[]>([]);
@@ -91,9 +141,12 @@ export default function SynthesisPage() {
     }, []);
 
     const fetchVoices = async () => {
+        const auth = getAuth();
+        if (!auth) return;
+
         try {
             const response = await fetch(`${API_BASE}/voices`, {
-                headers: { 'Authorization': `Basic ${CREDENTIALS}` }
+                headers: { 'Authorization': `Basic ${auth}` }
             });
             if (response.ok) {
                 const data = await response.json();
@@ -159,6 +212,9 @@ export default function SynthesisPage() {
             return;
         }
 
+        const auth = getAuth();
+        if (!auth) return;
+
         setLoading(true);
         setError(null);
         setAudioUrl(null);
@@ -166,6 +222,13 @@ export default function SynthesisPage() {
         try {
             const formData = new FormData();
             formData.append('text', textInput);
+            formData.append('mode', selectedMode);
+            formData.append('language_id', languageId);
+            formData.append('temperature', temperature.toString());
+            formData.append('exaggeration', exaggeration.toString());
+            formData.append('cfg', cfg.toString());
+            formData.append('repetition_penalty', repetitionPenalty.toString());
+            formData.append('top_p', topP.toString());
 
             if (file) {
                 formData.append('audio_prompt', file);
@@ -176,7 +239,7 @@ export default function SynthesisPage() {
 
             const response = await fetch(`${API_BASE}/generate-tts`, {
                 method: 'POST',
-                headers: { 'Authorization': `Basic ${CREDENTIALS}` },
+                headers: { 'Authorization': `Basic ${auth}` },
                 body: formData,
             });
 
@@ -261,6 +324,58 @@ export default function SynthesisPage() {
                                 <span className="font-mono text-xs font-bold tracking-wider">{t.liveEditor}</span>
                             </div>
                             <div className="flex gap-3">
+                                {/* Mode Selector */}
+                                <div className="flex items-center gap-2">
+                                    <span className="font-mono text-xs opacity-60">{t.mode}:</span>
+                                    <select
+                                        value={selectedMode}
+                                        onChange={(e) => setSelectedMode(e.target.value as 'turbo' | 'multilingual')}
+                                        className={`px-2 py-1 text-xs border ${borderClass} bg-transparent font-mono outline-none`}
+                                    >
+                                        <option value="turbo">{t.turbo}</option>
+                                        <option value="multilingual">{t.multilingual}</option>
+                                    </select>
+                                </div>
+
+                                {/* Language ID Selector (only when multilingual) */}
+                                {selectedMode === 'multilingual' && (
+                                    <>
+                                        <div className={`h-6 w-[1px] ${borderClass}`}></div>
+                                        <div className="flex items-center gap-2">
+                                            <span className="font-mono text-xs opacity-60">{t.languageId}:</span>
+                                            <select
+                                                value={languageId}
+                                                onChange={(e) => setLanguageId(e.target.value)}
+                                                className={`px-2 py-1 text-xs border ${borderClass} bg-transparent font-mono outline-none`}
+                                            >
+                                                <option value="es">ES</option>
+                                                <option value="en">EN</option>
+                                                <option value="fr">FR</option>
+                                                <option value="it">IT</option>
+                                                <option value="jp">JP</option>
+                                                <option value="de">DE</option>
+                                                <option value="pt">PT</option>
+                                                <option value="ru">RU</option>
+                                                <option value="zh">ZH</option>
+                                                <option value="ko">KO</option>
+                                                <option value="ar">AR</option>
+                                            </select>
+                                        </div>
+                                    </>
+                                )}
+
+                                <div className={`h-6 w-[1px] ${borderClass}`}></div>
+
+                                {/* Advanced Settings Toggle */}
+                                <button
+                                    onClick={() => setShowAdvanced(!showAdvanced)}
+                                    className={`px-3 py-1.5 rounded text-xs font-mono border ${borderClass} hover:bg-neutral-500/10 transition-colors`}
+                                >
+                                    ⚙️ {t.advancedSettings}
+                                </button>
+
+                                <div className={`h-6 w-[1px] ${borderClass}`}></div>
+
                                 <button
                                     onClick={() => setTextInput('')}
                                     className="px-3 py-1.5 rounded opacity-40 hover:opacity-100 font-mono text-xs flex items-center gap-2 transition-opacity"
@@ -287,6 +402,125 @@ export default function SynthesisPage() {
                                 </button>
                             </div>
                         </div>
+
+                        {/* Advanced Settings Panel */}
+                        {showAdvanced && (
+                            <div className={`border-b ${borderClass} p-6 bg-neutral-500/5`}>
+                                <div className="max-w-2xl mx-auto">
+                                    <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
+                                        <Sparkles size={16} className="text-purple-500" />
+                                        {t.advancedSettings}
+                                    </h3>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
+                                        {/* Temperature */}
+                                        <div>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="font-mono text-xs opacity-80">{t.temperature}</label>
+                                                <span className="font-mono text-xs text-purple-500">{temperature.toFixed(1)}</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="0.1"
+                                                max="1.5"
+                                                step="0.1"
+                                                value={temperature}
+                                                onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                                                className="w-full h-2 bg-neutral-300 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer"
+                                                style={{
+                                                    background: `linear-gradient(to right, rgb(168 85 247) 0%, rgb(168 85 247) ${((temperature - 0.1) / (1.5 - 0.1)) * 100}%, rgb(75 85 99) ${((temperature - 0.1) / (1.5 - 0.1)) * 100}%, rgb(75 85 99) 100%)`
+                                                }}
+                                            />
+                                            <p className="text-xs opacity-60 mt-1">{t.temperatureDesc}</p>
+                                        </div>
+
+                                        {/* Exaggeration */}
+                                        <div>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="font-mono text-xs opacity-80">{t.exaggeration}</label>
+                                                <span className="font-mono text-xs text-blue-500">{exaggeration.toFixed(1)}</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="0.0"
+                                                max="2.0"
+                                                step="0.1"
+                                                value={exaggeration}
+                                                onChange={(e) => setExaggeration(parseFloat(e.target.value))}
+                                                className="w-full h-2 bg-neutral-300 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer"
+                                                style={{
+                                                    background: `linear-gradient(to right, rgb(59 130 246) 0%, rgb(59 130 246) ${(exaggeration / 2.0) * 100}%, rgb(75 85 99) ${(exaggeration / 2.0) * 100}%, rgb(75 85 99) 100%)`
+                                                }}
+                                            />
+                                            <p className="text-xs opacity-60 mt-1">{t.exaggerationDesc}</p>
+                                        </div>
+
+                                        {/* CFG */}
+                                        <div>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="font-mono text-xs opacity-80">{t.cfg}</label>
+                                                <span className="font-mono text-xs text-emerald-500">{cfg.toFixed(1)}</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="0.1"
+                                                max="1.0"
+                                                step="0.1"
+                                                value={cfg}
+                                                onChange={(e) => setCfg(parseFloat(e.target.value))}
+                                                className="w-full h-2 bg-neutral-300 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer"
+                                                style={{
+                                                    background: `linear-gradient(to right, rgb(16 185 129) 0%, rgb(16 185 129) ${((cfg - 0.1) / (1.0 - 0.1)) * 100}%, rgb(75 85 99) ${((cfg - 0.1) / (1.0 - 0.1)) * 100}%, rgb(75 85 99) 100%)`
+                                                }}
+                                            />
+                                            <p className="text-xs opacity-60 mt-1">{t.cfgDesc}</p>
+                                        </div>
+
+                                        {/* Repetition Penalty */}
+                                        <div>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="font-mono text-xs opacity-80">{t.repetitionPenalty}</label>
+                                                <span className="font-mono text-xs text-orange-500">{repetitionPenalty.toFixed(1)}</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="0.5"
+                                                max="3.0"
+                                                step="0.1"
+                                                value={repetitionPenalty}
+                                                onChange={(e) => setRepetitionPenalty(parseFloat(e.target.value))}
+                                                className="w-full h-2 bg-neutral-300 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer"
+                                                style={{
+                                                    background: `linear-gradient(to right, rgb(249 115 22) 0%, rgb(249 115 22) ${((repetitionPenalty - 0.5) / (3.0 - 0.5)) * 100}%, rgb(75 85 99) ${((repetitionPenalty - 0.5) / (3.0 - 0.5)) * 100}%, rgb(75 85 99) 100%)`
+                                                }}
+                                            />
+                                            <p className="text-xs opacity-60 mt-1">{t.repetitionPenaltyDesc}</p>
+                                        </div>
+
+                                        {/* Top-P */}
+                                        <div>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="font-mono text-xs opacity-80">{t.topP}</label>
+                                                <span className="font-mono text-xs text-pink-500">{topP.toFixed(1)}</span>
+                                            </div>
+                                            <input
+                                                type="range"
+                                                min="0.1"
+                                                max="1.0"
+                                                step="0.1"
+                                                value={topP}
+                                                onChange={(e) => setTopP(parseFloat(e.target.value))}
+                                                className="w-full h-2 bg-neutral-300 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer"
+                                                style={{
+                                                    background: `linear-gradient(to right, rgb(236 72 153) 0%, rgb(236 72 153) ${((topP - 0.1) / (1.0 - 0.1)) * 100}%, rgb(75 85 99) ${((topP - 0.1) / (1.0 - 0.1)) * 100}%, rgb(75 85 99) 100%)`
+                                                }}
+                                            />
+                                            <p className="text-xs opacity-60 mt-1">{t.topPDesc}</p>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         <div className="flex-1 relative p-8 overflow-y-auto">
                             <textarea

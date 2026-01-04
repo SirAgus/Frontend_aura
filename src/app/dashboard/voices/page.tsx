@@ -83,12 +83,22 @@ export default function VoiceLabPage() {
         fetchVoices();
     }, []);
 
-    const getAuth = () => localStorage.getItem('voice_auth') || btoa('admin:admin_password');
+    const getAuth = () => {
+        const auth = localStorage.getItem('voice_auth');
+        if (!auth) {
+            router.push('/');
+            return null;
+        }
+        return auth;
+    };
 
     const fetchVoices = async () => {
+        const auth = getAuth();
+        if (!auth) return;
+
         try {
             const response = await fetch(`${API_BASE}/voices`, {
-                headers: { 'Authorization': `Basic ${getAuth()}` }
+                headers: { 'Authorization': `Basic ${auth}` }
             });
             if (response.ok) {
                 const data = await response.json();
@@ -105,6 +115,9 @@ export default function VoiceLabPage() {
         e.preventDefault();
         if (!file || !voiceName) return;
 
+        const auth = getAuth();
+        if (!auth) return;
+
         setLoading(true);
         setMessage(null);
 
@@ -119,7 +132,7 @@ export default function VoiceLabPage() {
         try {
             const response = await fetch(`${API_BASE}/voices/upload`, {
                 method: 'POST',
-                headers: { 'Authorization': `Basic ${getAuth()}` },
+                headers: { 'Authorization': `Basic ${auth}` },
                 body: formData,
             });
 
@@ -146,6 +159,9 @@ export default function VoiceLabPage() {
         e.preventDefault();
         if (!editingVoice) return;
 
+        const auth = getAuth();
+        if (!auth) return;
+
         // PUT /voices/{id}
         // Assuming backend accepts formData or params. Prompt says "PUT /voices/{voice_id}: Renombra una voz o actualiza sus metadatos".
         try {
@@ -156,7 +172,10 @@ export default function VoiceLabPage() {
             // Let's assume ID is the original name and we pass new_name.
 
             const params = new URLSearchParams();
-            if (editingVoice.newName) params.append('new_name', editingVoice.newName);
+            // Only send new_name if it's different from the original to avoid unnecessary rename operations
+            if (editingVoice.newName && editingVoice.newName !== editingVoice.originalName) {
+                params.append('new_name', editingVoice.newName);
+            }
             params.append('language', editingVoice.language);
             params.append('region', editingVoice.region);
             params.append('gender', editingVoice.gender);
@@ -164,7 +183,7 @@ export default function VoiceLabPage() {
 
             const response = await fetch(`${API_BASE}/voices/${editingVoice.originalName}?${params.toString()}`, {
                 method: 'PUT',
-                headers: { 'Authorization': `Basic ${getAuth()}` }
+                headers: { 'Authorization': `Basic ${auth}` }
             });
 
             if (response.ok) {
@@ -178,10 +197,14 @@ export default function VoiceLabPage() {
 
     const handleDelete = async (voiceName: string) => {
         if (!confirm(t.deleteConfirm)) return;
+
+        const auth = getAuth();
+        if (!auth) return;
+
         try {
             await fetch(`${API_BASE}/voices/${voiceName}`, {
                 method: 'DELETE',
-                headers: { 'Authorization': `Basic ${getAuth()}` }
+                headers: { 'Authorization': `Basic ${auth}` }
             });
             fetchVoices();
         } catch (e) { console.error(e); }
@@ -194,6 +217,10 @@ export default function VoiceLabPage() {
             setPlayingVoice(null);
             return;
         }
+
+        const auth = getAuth();
+        if (!auth) return;
+
         setPlayingVoice(voiceName);
         try {
             const formData = new FormData();
@@ -204,7 +231,7 @@ export default function VoiceLabPage() {
 
             const response = await fetch(`${API_BASE}/generate-tts`, {
                 method: 'POST',
-                headers: { 'Authorization': `Basic ${getAuth()}` },
+                headers: { 'Authorization': `Basic ${auth}` },
                 body: formData,
             });
 

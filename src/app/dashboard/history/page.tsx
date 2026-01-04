@@ -1,13 +1,22 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Moon, Sun, Waves, Globe, LogOut, Mic, Users, Clock, Settings, Download, Trash2, FileAudio, RefreshCw } from 'lucide-react';
+import { Moon, Sun, Waves, Globe, LogOut, Mic, Users, Clock, Settings, Download, Trash2, FileAudio, RefreshCw, Play, Pause, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import DashboardSidebar from '../../../components/DashboardSidebar';
+import { useRef } from 'react'; // Ensure useRef is imported
 
 const API_BASE = 'http://localhost:8000';
-const CREDENTIALS = btoa('admin:admin_password');
+
+const getAuth = () => {
+    const auth = localStorage.getItem('voice_auth');
+    if (!auth) {
+        window.location.href = '/';
+        return null;
+    }
+    return auth;
+};
 
 const translations = {
     es: {
@@ -24,6 +33,13 @@ const translations = {
         voice: 'Voz',
         date: 'Fecha',
         actions: 'Acciones',
+        mode: 'Modo',
+        language: 'Idioma',
+        temperature: 'Temp',
+        exaggeration: 'Exagg',
+        cfg: 'CFG',
+        repetitionPenalty: 'Rep',
+        topP: 'Top-P',
         noHistory: 'No hay historial disponible.',
         loading: 'Cargando historial...',
         clear: 'LIMPIAR',
@@ -42,6 +58,13 @@ const translations = {
         voice: 'Voice',
         date: 'Date',
         actions: 'Actions',
+        mode: 'Mode',
+        language: 'Language',
+        temperature: 'Temp',
+        exaggeration: 'Exagg',
+        cfg: 'CFG',
+        repetitionPenalty: 'Rep',
+        topP: 'Top-P',
         noHistory: 'No history available.',
         loading: 'Loading history...',
         clear: 'CLEAR',
@@ -56,6 +79,10 @@ export default function HistoryPage() {
     const [history, setHistory] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
 
+    // Audio Player State
+    const [playingFile, setPlayingFile] = useState<string | null>(null);
+    const audioRef = useRef<HTMLAudioElement | null>(null);
+
     const t = translations[lang];
 
     useEffect(() => {
@@ -63,9 +90,12 @@ export default function HistoryPage() {
     }, []);
 
     const fetchHistory = async () => {
+        const auth = getAuth();
+        if (!auth) return;
+
         try {
             const response = await fetch(`${API_BASE}/history`, {
-                headers: { 'Authorization': `Basic ${CREDENTIALS}` }
+                headers: { 'Authorization': `Basic ${auth}` }
             });
             if (response.ok) {
                 const data = await response.json();
@@ -81,9 +111,12 @@ export default function HistoryPage() {
     };
 
     const handleDownload = async (filename: string) => {
+        const auth = getAuth();
+        if (!auth) return;
+
         try {
             const response = await fetch(`${API_BASE}/download/${filename}`, {
-                headers: { 'Authorization': `Basic ${CREDENTIALS}` }
+                headers: { 'Authorization': `Basic ${auth}` }
             });
             if (!response.ok) return;
 
@@ -98,11 +131,45 @@ export default function HistoryPage() {
         } catch (e) { console.error(e); }
     };
 
+    const handlePlay = async (filename: string) => {
+        if (playingFile === filename) {
+            audioRef.current?.pause();
+            setPlayingFile(null);
+            return;
+        }
+
+        const auth = getAuth();
+        if (!auth) return;
+
+        try {
+            setPlayingFile(filename); // Optimistic UI update (show spinner or play state)
+            const response = await fetch(`${API_BASE}/download/${filename}`, {
+                headers: { 'Authorization': `Basic ${auth}` }
+            });
+
+            if (!response.ok) throw new Error('Playback failed');
+
+            const blob = await response.blob();
+            const url = window.URL.createObjectURL(blob);
+
+            if (audioRef.current) {
+                audioRef.current.src = url;
+                audioRef.current.play();
+                audioRef.current.onended = () => setPlayingFile(null);
+            }
+        } catch (e) {
+            console.error(e);
+            setPlayingFile(null);
+        }
+    };
 
     const handleDeleteAll = async () => {
         if (!confirm('¿Borrar todo el historial?')) return;
+
+        const auth = getAuth();
+        if (!auth) return;
+
         try {
-            const auth = localStorage.getItem('voice_auth') || btoa('admin:admin_password');
             await fetch(`${API_BASE}/history?delete_all=true`, {
                 method: 'DELETE',
                 headers: { 'Authorization': `Basic ${auth}` }
@@ -113,8 +180,11 @@ export default function HistoryPage() {
 
     const handleDeleteEntry = async (id: string) => {
         if (!confirm('¿Borrar esta entrada?')) return;
+
+        const auth = getAuth();
+        if (!auth) return;
+
         try {
-            const auth = localStorage.getItem('voice_auth') || btoa('admin:admin_password');
             await fetch(`${API_BASE}/history?ids=${id}`, { // Assuming backend supports query param for simple list or modified
                 method: 'DELETE',
                 headers: { 'Authorization': `Basic ${auth}` }
@@ -138,6 +208,8 @@ export default function HistoryPage() {
 
     return (
         <div className={`min-h-screen font-sans ${themeClasses} flex flex-col`}>
+            <audio ref={audioRef} className="hidden" />
+
             <nav className={`fixed top-0 left-0 w-full z-50 border-b ${borderClass} backdrop-blur-md bg-opacity-80 ${theme === 'light' ? 'bg-[#f0f0f0]/80' : 'bg-[#0a0a0a]/80'}`}>
                 <div className="w-full px-6 h-20 flex items-center justify-between">
                     <div className="flex items-center gap-2 font-bold text-xl tracking-tighter"><div className={`w-8 h-8 flex items-center justify-center border ${borderClass} rounded-full`}><Waves size={16} /></div><span>AURA_VOICE</span></div>
@@ -177,15 +249,22 @@ export default function HistoryPage() {
                                         <th className="p-4 w-12">#</th>
                                         <th className="p-4">Text</th>
                                         <th className="p-4">Voice</th>
+                                        <th className="p-4">{t.mode}</th>
+                                        <th className="p-4">{t.language}</th>
+                                        <th className="p-4">{t.temperature}</th>
+                                        <th className="p-4">{t.exaggeration}</th>
+                                        <th className="p-4">{t.cfg}</th>
+                                        <th className="p-4">{t.repetitionPenalty}</th>
+                                        <th className="p-4">{t.topP}</th>
                                         <th className="p-4 text-right">Time</th>
                                         <th className="p-4 text-right">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody className={`divide-y ${borderClass}`}>
                                     {loading ? (
-                                        <tr><td colSpan={5} className="p-8 text-center opacity-40">{t.loading}</td></tr>
+                                        <tr><td colSpan={12} className="p-8 text-center opacity-40">{t.loading}</td></tr>
                                     ) : history.length === 0 ? (
-                                        <tr><td colSpan={5} className="p-8 text-center opacity-40">{t.noHistory}</td></tr>
+                                        <tr><td colSpan={12} className="p-8 text-center opacity-40">{t.noHistory}</td></tr>
                                     ) : (
                                         history.map((item, i) => (
                                             <tr key={item.id} className="hover:bg-neutral-500/5 transition-colors group">
@@ -194,10 +273,38 @@ export default function HistoryPage() {
                                                 <td className="p-4">
                                                     <span className={`px-2 py-1 rounded text-xs font-mono border ${borderClass}`}>{item.voice_used}</span>
                                                 </td>
+                                                <td className="p-4">
+                                                    <span className={`px-2 py-1 rounded text-xs font-mono border ${borderClass}`}>{item.mode || 'turbo'}</span>
+                                                </td>
+                                                <td className="p-4">
+                                                    <span className={`px-2 py-1 rounded text-xs font-mono border ${borderClass}`}>{item.language_id || 'es'}</span>
+                                                </td>
+                                                <td className="p-4">
+                                                    <span className={`px-2 py-1 rounded text-xs font-mono border ${borderClass}`}>{item.temperature || '0.8'}</span>
+                                                </td>
+                                                <td className="p-4">
+                                                    <span className={`px-2 py-1 rounded text-xs font-mono border ${borderClass}`}>{item.exaggeration || '0.5'}</span>
+                                                </td>
+                                                <td className="p-4">
+                                                    <span className={`px-2 py-1 rounded text-xs font-mono border ${borderClass}`}>{item.cfg || '0.5'}</span>
+                                                </td>
+                                                <td className="p-4">
+                                                    <span className={`px-2 py-1 rounded text-xs font-mono border ${borderClass}`}>{item.repetition_penalty || '2.0'}</span>
+                                                </td>
+                                                <td className="p-4">
+                                                    <span className={`px-2 py-1 rounded text-xs font-mono border ${borderClass}`}>{item.top_p || '1.0'}</span>
+                                                </td>
                                                 <td className="p-4 text-right opacity-60 text-xs font-mono">
                                                     {new Date(item.timestamp).toLocaleString()}
                                                 </td>
                                                 <td className="p-4 text-right flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                    <button
+                                                        onClick={() => handlePlay(item.filename)}
+                                                        className={`p-2 rounded-full transition-colors ${playingFile === item.filename ? 'bg-emerald-500 text-white' : 'hover:bg-neutral-500/10'}`}
+                                                        title="Play"
+                                                    >
+                                                        {playingFile === item.filename ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
+                                                    </button>
                                                     <button onClick={() => handleDownload(item.filename)} className="p-2 hover:bg-neutral-500/10 rounded-full" title="Download">
                                                         <Download size={16} />
                                                     </button>

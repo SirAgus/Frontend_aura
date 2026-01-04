@@ -25,6 +25,9 @@ const translations = {
         viewHistory: 'Ver Historial',
         recentGenerations: 'Generaciones Recientes',
         noActivity: 'No hay actividad reciente',
+        systemStatus: 'Estado del Sistema',
+        multilingualSupport: 'Soporte Multilingüe',
+        availableModes: 'Modos Disponibles',
     },
     en: {
         statusOnline: 'STATUS: ONLINE',
@@ -45,6 +48,9 @@ const translations = {
         viewHistory: 'View History',
         recentGenerations: 'Recent Generations',
         noActivity: 'No recent activity',
+        systemStatus: 'System Status',
+        multilingualSupport: 'Multilingual Support',
+        availableModes: 'Available Modes',
     }
 };
 
@@ -84,6 +90,11 @@ export default function DashboardHome() {
     });
     const [recentHistory, setRecentHistory] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [systemInfo, setSystemInfo] = useState<{
+        status: string;
+        multilingual_support: string;
+        available_modes: string[];
+    } | null>(null);
 
     const t = translations[lang];
 
@@ -93,7 +104,23 @@ export default function DashboardHome() {
 
     const fetchDashboardData = async () => {
         try {
-            const authHeader = { 'Authorization': 'Basic ' + btoa('admin:admin_password') };
+            const storedAuth = localStorage.getItem('voice_auth');
+            if (!storedAuth) {
+                router.push('/');
+                return;
+            }
+            const authHeader = { 'Authorization': 'Basic ' + storedAuth };
+
+            // 0. Fetch System Info
+            try {
+                const systemRes = await fetch('http://localhost:8000/', { headers: authHeader });
+                if (systemRes.ok) {
+                    const systemData = await systemRes.json();
+                    setSystemInfo(systemData);
+                }
+            } catch (e) {
+                console.error("Error fetching system info:", e);
+            }
 
             // 1. Fetch Voices Count
             const voicesRes = await fetch('http://localhost:8000/voices', { headers: authHeader });
@@ -240,6 +267,39 @@ export default function DashboardHome() {
                             <h1 className="text-4xl font-bold tracking-tight mb-2">{t.quickAccess}</h1>
                             <p className="text-sm opacity-60">{t.recentActivity}</p>
                         </div>
+
+                        {/* System Status */}
+                        {systemInfo && (
+                            <div className={`mb-8 p-6 border ${cardClasses} rounded-xl`}>
+                                <h2 className="text-xl font-bold mb-4 flex items-center gap-2">
+                                    <Zap className="text-emerald-500" size={20} />
+                                    {t.systemStatus}
+                                </h2>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-3 h-3 rounded-full bg-emerald-500"></div>
+                                        <div>
+                                            <div className="font-mono text-sm opacity-60">{t.systemStatus}</div>
+                                            <div className="font-bold">{systemInfo.status}</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-3 h-3 rounded-full bg-blue-500"></div>
+                                        <div>
+                                            <div className="font-mono text-sm opacity-60">{t.multilingualSupport}</div>
+                                            <div className="font-bold">{systemInfo.multilingual_support}</div>
+                                        </div>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <div className="w-3 h-3 rounded-full bg-purple-500"></div>
+                                        <div>
+                                            <div className="font-mono text-sm opacity-60">{t.availableModes}</div>
+                                            <div className="font-bold">{systemInfo.available_modes.join(', ')}</div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
 
                         {/* Stats Grid */}
                         <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
