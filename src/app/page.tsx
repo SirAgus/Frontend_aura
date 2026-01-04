@@ -1,65 +1,477 @@
-import Image from "next/image";
+'use client';
 
-export default function Home() {
-  return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
+import React, { useState } from 'react';
+import { Moon, Sun, Mic, Activity, Cpu, Languages, Play, Waves, X, Menu, ArrowRight, User, Lock, Mail, Globe } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+
+// Translations
+const translations = {
+  es: {
+    demo: 'Demo',
+    features: 'Características',
+    api: 'API',
+    signIn: 'Iniciar Sesión',
+    getApiKey: 'Obtener API Key',
+    welcomeBack: 'BIENVENIDO',
+    accessTerminal: 'ACCESO AL TERMINAL',
+    signInDesc: 'Ingresa tus credenciales para acceder al núcleo neuronal.',
+    signUpDesc: 'Inicializa tu espacio de trabajo y obtén tu API key.',
+    fullName: 'Nombre Completo',
+    email: 'correo@empresa.com',
+    password: 'Contraseña',
+    authenticate: 'Autenticar',
+    initializeAccount: 'Inicializar Cuenta',
+    createAccount: 'CREAR CUENTA',
+    alreadyHaveAccount: '¿YA TIENES CUENTA?',
+    version: 'V2.0 ESTABLE',
+    latency: 'LATENCIA: 12ms',
+    sonicPresence: 'PRESENCIA',
+    engine: 'SÓNICA.',
+    heroDesc: 'Síntesis neuronal hiper-realista. No distinguible de la voz humana. Diseñada para conversaciones infinitas.',
+    voiceSample: 'MUESTRA DE VOZ: "AURA"',
+    scrollToListen: 'DESPLAZA PARA ESCUCHAR',
+    systemCapabilities: 'CAPACIDADES DEL SISTEMA',
+    neuralArchitecture: '[ ARQUITECTURA NEURONAL ]',
+    latencyFeature: '01 / LATENCIA',
+    realtimeCore: 'Núcleo en Tiempo Real',
+    realtimeDesc: 'Procesamiento en <50ms para conversaciones fluidas y sin interrupciones.',
+    emotionFeature: '02 / EMOCIÓN',
+    adaptiveTone: 'Tono Adaptativo',
+    adaptiveToneDesc: 'La IA detecta el contexto y ajusta el tono: susurros, risas y pausas dramáticas.',
+    globalFeature: '03 / GLOBAL',
+    omniLingual: 'Omni-Lingual',
+    omniLingualDesc: 'Soporte nativo para 40+ idiomas con preservación de acento y dialecto local.',
+    startApiTrial: 'INICIAR PRUEBA API',
+    getApiKeyCta: 'OBTENER API KEY →',
+    architecture: 'Arquitectura',
+    beyondText: 'MÁS ALLÁ DEL TEXTO.',
+    waveformGeneration: 'Generación de Forma de Onda',
+    waveformDesc: 'No concatenamos sílabas. Generamos ondas de audio completas pixel a pixel, logrando una textura orgánica.',
+    contextAware: 'Consciente del Contexto',
+    contextAwareDesc: 'El modelo entiende lo que lee. Sabe cuándo subir la entonación en una pregunta o suavizarla en una disculpa.',
+    github: 'GITHUB',
+    discord: 'DISCORD',
+    status: 'ESTADO',
+    footer: '© 2024 Aura Intelligence. Sistema operacional.',
+  },
+  en: {
+    demo: 'Demo',
+    features: 'Features',
+    api: 'API',
+    signIn: 'Sign In',
+    getApiKey: 'Get API Key',
+    welcomeBack: 'WELCOME BACK',
+    accessTerminal: 'ACCESS TERMINAL',
+    signInDesc: 'Enter your credentials to access the neural core.',
+    signUpDesc: 'Initialize your workspace and get your API key.',
+    fullName: 'Full Name',
+    email: 'name@company.com',
+    password: 'Password',
+    authenticate: 'Authenticate',
+    initializeAccount: 'Initialize Account',
+    createAccount: 'CREATE ACCOUNT',
+    alreadyHaveAccount: 'ALREADY HAVE ACCOUNT?',
+    version: 'V2.0 STABLE',
+    latency: 'LATENCY: 12ms',
+    sonicPresence: 'PRESENCE',
+    engine: 'ENGINE.',
+    heroDesc: 'Hyper-realistic neural synthesis. Indistinguishable from human voice. Designed for infinite conversations.',
+    voiceSample: 'VOICE SAMPLE: "AURA"',
+    scrollToListen: 'SCROLL TO LISTEN',
+    systemCapabilities: 'SYSTEM CAPABILITIES',
+    neuralArchitecture: '[ NEURAL ARCHITECTURE ]',
+    latencyFeature: '01 / LATENCY',
+    realtimeCore: 'Real-time Core',
+    realtimeDesc: 'Processing in <50ms for fluid and uninterrupted conversations.',
+    emotionFeature: '02 / EMOTION',
+    adaptiveTone: 'Adaptive Tone',
+    adaptiveToneDesc: 'AI detects context and adjusts tone: whispers, laughter, and dramatic pauses.',
+    globalFeature: '03 / GLOBAL',
+    omniLingual: 'Omni-Lingual',
+    omniLingualDesc: 'Native support for 40+ languages with accent and local dialect preservation.',
+    startApiTrial: 'START API TRIAL',
+    getApiKeyCta: 'GET API KEY →',
+    architecture: 'Architecture',
+    beyondText: 'BEYOND TEXT.',
+    waveformGeneration: 'Waveform Generation',
+    waveformDesc: 'We don\'t concatenate syllables. We generate complete audio waves pixel by pixel, achieving organic texture.',
+    contextAware: 'Context Aware',
+    contextAwareDesc: 'The model understands what it reads. It knows when to raise intonation in a question or soften it in an apology.',
+    github: 'GITHUB',
+    discord: 'DISCORD',
+    status: 'STATUS',
+    footer: '© 2024 Aura Intelligence. System operational.',
+  }
+};
+
+export default function LandingPage() {
+  const router = useRouter();
+  const [theme, setTheme] = useState('light');
+  const [lang, setLang] = useState<'es' | 'en'>('es');
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [showAuth, setShowAuth] = useState(false);
+  const [authMode, setAuthMode] = useState('signin');
+
+  const t = translations[lang];
+
+  const toggleTheme = () => {
+    setTheme(prev => prev === 'light' ? 'dark' : 'light');
+  };
+
+  const toggleLang = () => {
+    setLang(prev => prev === 'es' ? 'en' : 'es');
+  };
+
+  const scrollTo = (id: string) => {
+    setIsMenuOpen(false);
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const handleLogin = (e: React.FormEvent) => {
+    e.preventDefault();
+    router.push('/dashboard');
+  };
+
+  const themeClasses = theme === 'light'
+    ? 'bg-[#f0f0f0] text-neutral-900 selection:bg-neutral-900 selection:text-white'
+    : 'bg-[#0a0a0a] text-neutral-100 selection:bg-white selection:text-black';
+
+  const cardClasses = theme === 'light'
+    ? 'bg-white border-neutral-200 hover:border-neutral-400'
+    : 'bg-[#111] border-neutral-800 hover:border-neutral-600';
+
+  const borderClass = theme === 'light' ? 'border-neutral-300' : 'border-neutral-800';
+  const textSubtle = theme === 'light' ? 'text-neutral-500' : 'text-neutral-500';
+  const inputClasses = theme === 'light'
+    ? 'bg-[#f8f8f8] border-neutral-300 focus:border-neutral-900 placeholder:text-neutral-400'
+    : 'bg-[#1a1a1a] border-neutral-800 focus:border-white placeholder:text-neutral-600';
+
+  const Visualizer = ({ playing }: { playing: boolean }) => (
+    <div className="flex items-center justify-center gap-1 h-12">
+      {[...Array(8)].map((_, i) => (
+        <div
+          key={i}
+          className={`w-1 md:w-1.5 rounded-full transition-all duration-300 ${theme === 'light' ? 'bg-neutral-900' : 'bg-white'}`}
+          style={{
+            height: playing ? `${Math.random() * 100}%` : '20%',
+            animation: playing ? `bounce 0.5s infinite ${i * 0.1}s` : 'none'
+          }}
         />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+      ))}
+    </div>
+  );
+
+  return (
+    <div className={`min-h-screen transition-colors duration-500 ease-in-out font-sans ${themeClasses} flex flex-col overflow-x-hidden relative`}>
+
+      {/* Navigation Bar */}
+      <nav className={`fixed top-0 left-0 w-full z-50 border-b ${borderClass} backdrop-blur-md bg-opacity-80 ${theme === 'light' ? 'bg-[#f0f0f0]/80' : 'bg-[#0a0a0a]/80'}`}>
+        <div className="w-full px-6 h-20 flex items-center justify-between">
+          <div className="flex items-center gap-2 font-bold text-xl tracking-tighter cursor-pointer" onClick={() => scrollTo('home')}>
+            <div className={`w-8 h-8 flex items-center justify-center border ${borderClass} rounded-full`}>
+              <Waves size={16} />
+            </div>
+            <span>AURA_VOICE</span>
+          </div>
+
+          <div className="hidden md:flex items-center gap-8 text-sm font-medium tracking-wide">
+            {[t.demo, t.features, t.api].map((item) => (
+              <button
+                key={item}
+                onClick={() => scrollTo(item.toLowerCase())}
+                className="hover:opacity-50 transition-opacity uppercase"
+              >
+                {item}
+              </button>
+            ))}
+
+            <div className={`h-4 w-[1px] ${theme === 'light' ? 'bg-neutral-300' : 'bg-neutral-800'}`}></div>
+
+            <button
+              onClick={() => { setShowAuth(true); setAuthMode('signin'); }}
+              className="hover:opacity-50 transition-opacity uppercase"
             >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
+              {t.signIn}
+            </button>
+
+            <button
+              onClick={() => { setShowAuth(true); setAuthMode('signup'); }}
+              className={`px-4 py-2 rounded-full text-xs font-bold uppercase transition-all hover:scale-105 ${theme === 'light' ? 'bg-black text-white' : 'bg-white text-black'}`}
             >
-              Learning
-            </a>{" "}
-            center.
-          </p>
+              {t.getApiKey}
+            </button>
+
+            <button
+              onClick={toggleLang}
+              className={`p-2 rounded-full border ${borderClass} hover:scale-105 transition-transform flex items-center gap-1`}
+            >
+              <Globe size={16} />
+              <span className="text-xs font-bold">{lang.toUpperCase()}</span>
+            </button>
+
+            <button
+              onClick={toggleTheme}
+              className={`p-2 rounded-full border ${borderClass} hover:scale-105 transition-transform`}
+            >
+              {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
+          </div>
+
+          <div className="md:hidden flex items-center gap-4">
+            <button onClick={toggleLang} className={`p-2 rounded-full border ${borderClass}`}>
+              <Globe size={16} />
+            </button>
+            <button onClick={toggleTheme} className={`p-2 rounded-full border ${borderClass}`}>
+              {theme === 'light' ? <Moon size={18} /> : <Sun size={18} />}
+            </button>
+            <button onClick={() => setIsMenuOpen(!isMenuOpen)}>
+              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+      </nav>
+
+      {/* Auth Modal */}
+      {showAuth && (
+        <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 backdrop-blur-sm bg-black/20 dark:bg-black/50">
+          <div
+            className="absolute inset-0"
+            onClick={() => setShowAuth(false)}
+          ></div>
+
+          <div className={`relative w-full max-w-md p-8 md:p-12 shadow-2xl transition-all duration-300 ${theme === 'light' ? 'bg-white' : 'bg-[#111] border border-neutral-800'}`}>
+            <button
+              onClick={() => setShowAuth(false)}
+              className="absolute top-6 right-6 opacity-50 hover:opacity-100"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="mb-8">
+              <div className={`w-10 h-10 flex items-center justify-center border ${borderClass} rounded-full mb-4`}>
+                <Waves size={20} />
+              </div>
+              <h2 className="text-3xl font-bold tracking-tighter mb-2">
+                {authMode === 'signin' ? t.welcomeBack : t.accessTerminal}
+              </h2>
+              <p className={`text-sm ${textSubtle}`}>
+                {authMode === 'signin' ? t.signInDesc : t.signUpDesc}
+              </p>
+            </div>
+
+            <form className="flex flex-col gap-4" onSubmit={handleLogin}>
+              {authMode === 'signup' && (
+                <div className="relative group">
+                  <User className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${textSubtle}`} />
+                  <input
+                    type="text"
+                    placeholder={t.fullName}
+                    className={`w-full p-4 pl-12 text-sm outline-none transition-colors border ${inputClasses}`}
+                  />
+                </div>
+              )}
+
+              <div className="relative group">
+                <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${textSubtle}`} />
+                <input
+                  type="email"
+                  placeholder={t.email}
+                  className={`w-full p-4 pl-12 text-sm outline-none transition-colors border ${inputClasses}`}
+                />
+              </div>
+
+              <div className="relative group">
+                <Lock className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${textSubtle}`} />
+                <input
+                  type="password"
+                  placeholder={t.password}
+                  className={`w-full p-4 pl-12 text-sm outline-none transition-colors border ${inputClasses}`}
+                />
+              </div>
+
+              <button type="submit" className={`mt-4 py-4 px-6 w-full font-bold text-sm tracking-widest uppercase flex items-center justify-center gap-2 transition-all hover:opacity-90 ${theme === 'light' ? 'bg-black text-white' : 'bg-white text-black'}`}>
+                {authMode === 'signin' ? t.authenticate : t.initializeAccount}
+                <ArrowRight size={16} />
+              </button>
+            </form>
+
+            <div className="mt-8 flex justify-between items-center text-xs font-mono">
+              <button
+                type="button"
+                onClick={() => setAuthMode(authMode === 'signin' ? 'signup' : 'signin')}
+                className="hover:underline opacity-60 hover:opacity-100"
+              >
+                {authMode === 'signin' ? t.createAccount : t.alreadyHaveAccount}
+              </button>
+            </div>
+          </div>
         </div>
+      )}
+
+      {/* Main Content */}
+      <main className="flex-grow pt-20">
+
+        {/* Hero Section */}
+        <section id="home" className="min-h-[90vh] flex flex-col justify-center px-6 w-full relative overflow-hidden">
+          <div className="absolute top-1/4 right-0 w-64 h-64 md:w-96 md:h-96 rounded-full blur-3xl opacity-20 bg-emerald-500 animate-pulse"></div>
+          <div className="absolute bottom-0 left-10 w-72 h-72 rounded-full blur-3xl opacity-20 bg-blue-500 animate-pulse delay-700"></div>
+
+          <div className="z-10 max-w-7xl mx-auto w-full">
+            <div className="max-w-4xl relative">
+              <div className="mb-6 flex items-center gap-4">
+                <span className={`px-3 py-1 rounded-full text-xs font-mono border ${borderClass}`}>{t.version}</span>
+                <span className="text-xs font-mono opacity-60">{t.latency}</span>
+              </div>
+
+              <h1 className="text-6xl md:text-8xl lg:text-9xl font-bold tracking-tighter leading-[0.9] mb-8">
+                SONIC<br />
+                <span className="text-transparent bg-clip-text bg-gradient-to-r from-neutral-500 to-neutral-900 dark:from-neutral-400 dark:to-white">{t.sonicPresence}</span><br />
+                {t.engine}
+              </h1>
+              <p className={`text-xl md:text-2xl max-w-xl leading-relaxed mb-10 ${textSubtle}`}>
+                {t.heroDesc}
+              </p>
+
+              <div className={`inline-flex items-center gap-6 p-2 pr-8 rounded-full border ${borderClass} ${theme === 'light' ? 'bg-white/50' : 'bg-black/50'} backdrop-blur-sm`}>
+                <button
+                  onClick={() => setIsPlaying(!isPlaying)}
+                  className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${isPlaying ? 'bg-red-500 text-white' : (theme === 'light' ? 'bg-black text-white' : 'bg-white text-black')}`}
+                >
+                  {isPlaying ? <div className="w-4 h-4 bg-white rounded-sm" /> : <Play size={24} fill="currentColor" className="ml-1" />}
+                </button>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs font-mono opacity-60">{t.voiceSample}</span>
+                  <Visualizer playing={isPlaying} />
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="absolute bottom-10 right-6 md:right-10 flex flex-col items-end gap-2 text-xs font-mono opacity-60 cursor-pointer hover:opacity-100 transition-opacity" onClick={() => scrollTo('features')}>
+            <span>{t.scrollToListen}</span>
+            <div className={`w-[1px] h-24 ${theme === 'light' ? 'bg-black' : 'bg-white'}`}></div>
+          </div>
+        </section>
+
+        {/* Features Section */}
+        <section id="features" className={`py-24 px-6 border-t ${borderClass}`}>
+          <div className="max-w-7xl mx-auto w-full">
+            <div className="flex justify-between items-end mb-16">
+              <h2 className="text-4xl md:text-6xl font-bold tracking-tight">{t.systemCapabilities}</h2>
+              <span className={`hidden md:block font-mono text-sm ${textSubtle}`}>{t.neuralArchitecture}</span>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-px bg-neutral-200 dark:bg-neutral-800 border border-neutral-200 dark:border-neutral-800">
+              {/* Feature 1 */}
+              <div className={`group relative aspect-[16/9] p-8 flex flex-col justify-between transition-all duration-300 ${cardClasses}`}>
+                <div className="flex justify-between items-start">
+                  <span className="font-mono text-xs">{t.latencyFeature}</span>
+                  <Activity className="opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                </div>
+                <div className="relative z-10">
+                  <div className="mb-4 w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                    <Cpu size={24} className="text-emerald-500" />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">{t.realtimeCore}</h3>
+                  <p className={`text-sm ${textSubtle}`}>{t.realtimeDesc}</p>
+                </div>
+                <div className={`absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500 ${theme === 'light' ? 'bg-black' : 'bg-white'}`}></div>
+              </div>
+
+              {/* Feature 2 */}
+              <div className={`group relative aspect-[16/9] p-8 flex flex-col justify-between transition-all duration-300 ${cardClasses}`}>
+                <div className="flex justify-between items-start">
+                  <span className="font-mono text-xs">{t.emotionFeature}</span>
+                  <Activity className="opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                </div>
+                <div className="relative z-10">
+                  <div className="mb-4 w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center">
+                    <Mic size={24} className="text-blue-500" />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">{t.adaptiveTone}</h3>
+                  <p className={`text-sm ${textSubtle}`}>{t.adaptiveToneDesc}</p>
+                </div>
+                <div className={`absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500 ${theme === 'light' ? 'bg-black' : 'bg-white'}`}></div>
+              </div>
+
+              {/* Feature 3 */}
+              <div className={`group relative aspect-[16/9] p-8 flex flex-col justify-between transition-all duration-300 ${cardClasses}`}>
+                <div className="flex justify-between items-start">
+                  <span className="font-mono text-xs">{t.globalFeature}</span>
+                  <Activity className="opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                </div>
+                <div className="relative z-10">
+                  <div className="mb-4 w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center">
+                    <Languages size={24} className="text-purple-500" />
+                  </div>
+                  <h3 className="text-2xl font-bold mb-2">{t.omniLingual}</h3>
+                  <p className={`text-sm ${textSubtle}`}>{t.omniLingualDesc}</p>
+                </div>
+                <div className={`absolute inset-0 opacity-0 group-hover:opacity-5 transition-opacity duration-500 ${theme === 'light' ? 'bg-black' : 'bg-white'}`}></div>
+              </div>
+
+              {/* Feature 4 - CTA */}
+              <div
+                onClick={() => { setShowAuth(true); setAuthMode('signup'); }}
+                className={`group relative aspect-[16/9] p-8 flex flex-col justify-center items-center text-center transition-all duration-300 cursor-pointer ${cardClasses}`}
+              >
+                <h3 className="text-4xl font-bold tracking-tighter group-hover:scale-110 transition-transform duration-500">{t.startApiTrial}</h3>
+                <div className={`mt-4 w-16 h-1 bg-current transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300`}></div>
+                <span className="font-mono text-xs mt-4 opacity-60">{t.getApiKeyCta}</span>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Technical Specs */}
+        <section id="api" className={`py-24 px-6 bg-current ${theme === 'light' ? 'text-white bg-neutral-900' : 'text-black bg-neutral-100'}`}>
+          <div className="max-w-7xl mx-auto w-full grid grid-cols-1 md:grid-cols-12 gap-12">
+            <div className="md:col-span-4">
+              <span className="font-mono text-xs tracking-widest uppercase border-b border-current pb-2 mb-8 block opacity-60">{t.architecture}</span>
+              <h2 className="text-3xl md:text-5xl font-bold leading-tight">{t.beyondText}</h2>
+            </div>
+            <div className="md:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-12">
+              <div>
+                <h4 className="text-xl font-bold mb-4 flex items-center gap-2"><Waves size={20} /> {t.waveformGeneration}</h4>
+                <p className="opacity-80 leading-relaxed">{t.waveformDesc}</p>
+              </div>
+              <div>
+                <h4 className="text-xl font-bold mb-4 flex items-center gap-2"><Cpu size={20} /> {t.contextAware}</h4>
+                <p className="opacity-80 leading-relaxed">{t.contextAwareDesc}</p>
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
+
+      {/* Footer */}
+      <footer className={`py-12 px-6 border-t ${borderClass}`}>
+        <div className="max-w-7xl mx-auto w-full flex flex-col md:flex-row justify-between items-center gap-6">
+          <div className="flex items-center gap-2 font-bold text-lg">
+            <Waves size={20} />
+            AURA_VOICE
+          </div>
+          <div className={`flex gap-8 text-sm font-mono ${textSubtle}`}>
+            <a href="#" className="hover:text-current transition-colors">{t.github}</a>
+            <a href="#" className="hover:text-current transition-colors">{t.discord}</a>
+            <a href="#" className="hover:text-current transition-colors">{t.status}</a>
+          </div>
+          <div className={`text-xs ${textSubtle}`}>
+            {t.footer}
+          </div>
+        </div>
+      </footer>
+
+      <style jsx global>{`
+        @keyframes bounce {
+          0%, 100% { height: 20%; }
+          50% { height: 100%; }
+        }
+      `}</style>
     </div>
   );
 }
