@@ -357,7 +357,7 @@ export default function LandingPage() {
         <div className="w-full px-6 h-20 flex items-center justify-between">
           <div className="flex items-center gap-2 font-bold text-xl tracking-tighter cursor-pointer" onClick={() => scrollTo('home')}>
             <div className="w-16 h-16 flex items-center justify-center">
-              <Image src="/logo.png" alt="AURA_VOICE" width={64} height={64} className="object-contain" />
+              <Image src="/logo.png" alt="AURA_VOICE" width={50} height={50} className="object-contain" />
             </div>
             <span>AURA_VOICE</span>
           </div>
@@ -448,7 +448,7 @@ export default function LandingPage() {
 
             <div className="mb-8">
               <div className="w-20 h-20 flex items-center justify-center mb-4">
-                <Image src="/logo.png" alt="AURA_VOICE" width={80} height={80} className="object-contain" />
+                <Image src="/logo.png" alt="AURA_VOICE" width={67} height={67} className="object-contain" />
               </div>
               <h2 className="text-3xl font-bold tracking-tighter mb-2">
                 {authMode === 'signin' ? t.welcomeBack : t.accessTerminal}
@@ -657,7 +657,7 @@ export default function LandingPage() {
             <div className="md:col-span-8 grid grid-cols-1 md:grid-cols-2 gap-12">
               <div>
                 <h4 className="text-xl font-bold mb-4 flex items-center gap-2">
-                  <Image src="/logo.png" alt="AURA_VOICE" width={32} height={32} className="object-contain" />
+                  <Image src="/logo.png" alt="AURA_VOICE" width={28} height={28} className="object-contain" />
                   {t.waveformGeneration}
                 </h4>
                 <p className="opacity-80 leading-relaxed">{t.waveformDesc}</p>
@@ -675,7 +675,7 @@ export default function LandingPage() {
       <footer className={`py-12 px-6 border-t ${borderClass}`}>
         <div className="max-w-7xl mx-auto w-full flex flex-col md:flex-row justify-between items-center gap-6">
           <div className="flex items-center gap-2 font-bold text-lg">
-            <Image src="/logo.png" alt="AURA_VOICE" width={48} height={48} className="object-contain" />
+            <Image src="/logo.png" alt="AURA_VOICE" width={40} height={40} className="object-contain" />
             AURA_VOICE
           </div>
           <div className={`flex gap-8 text-sm font-mono ${textSubtle} items-center`}>
