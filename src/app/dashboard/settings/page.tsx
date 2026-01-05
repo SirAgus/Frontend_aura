@@ -95,7 +95,7 @@ export default function SettingsPage() {
                                 <div className="space-y-2 font-mono text-xs opacity-60">
                                     <div className="flex justify-between">
                                         <span>Endpoint:</span>
-                                        <span>http://localhost:8000</span>
+                                        <span>{process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}</span>
                                     </div>
                                     <div className="flex justify-between">
                                         <span>Versión:</span>

@@ -110,10 +110,11 @@ export default function DashboardHome() {
                 return;
             }
             const authHeader = { 'Authorization': 'Basic ' + storedAuth };
+            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
             // 0. Fetch System Info
             try {
-                const systemRes = await fetch('http://localhost:8000/', { headers: authHeader });
+                const systemRes = await fetch(`${apiUrl}/`, { headers: authHeader });
                 if (systemRes.ok) {
                     const systemData = await systemRes.json();
                     setSystemInfo(systemData);
@@ -123,12 +124,12 @@ export default function DashboardHome() {
             }
 
             // 1. Fetch Voices Count
-            const voicesRes = await fetch('http://localhost:8000/voices', { headers: authHeader });
+            const voicesRes = await fetch(`${apiUrl}/voices`, { headers: authHeader });
             const voicesData = await voicesRes.json();
             const voicesCount = voicesData.voices ? voicesData.voices.length : 0;
 
             // 2. Fetch History for Stats & Recent Activity
-            const historyRes = await fetch('http://localhost:8000/history', { headers: authHeader });
+            const historyRes = await fetch(`${apiUrl}/history`, { headers: authHeader });
             const historyData = await historyRes.json();
 
             // Process History Data

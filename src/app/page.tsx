@@ -249,7 +249,8 @@ export default function LandingPage() {
 
     try {
       const credentials = btoa(`${username}:${password}`);
-      const response = await fetch('http://localhost:8000/login', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/login`, {
         method: 'POST',
         headers: { 'Authorization': `Basic ${credentials}` }
       });
@@ -284,7 +285,8 @@ export default function LandingPage() {
       setIsGenerating(true);
       // Using default admin creds for demo playback as before
       const defaultAuth = btoa('admin:admin_password');
-      const response = await fetch(`http://localhost:8000/demo?text=Hello%20I%20am%20Aura%20and%20this%20is%20a%20voice%20test&language=en&mode=multilingual&language_id=es&temperature=0.7&exaggeration=0.5&cfg=1.0&repetition_penalty=2.0&top_p=1.0`, {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+      const response = await fetch(`${apiUrl}/demo?text=Hello%20I%20am%20Aura%20and%20this%20is%20a%20voice%20test&language=en&mode=multilingual&language_id=es&temperature=0.7&exaggeration=0.5&cfg=1.0&repetition_penalty=2.0&top_p=1.0`, {
         headers: { 'Authorization': `Basic ${defaultAuth}` }
       });
 
@@ -539,10 +541,10 @@ export default function LandingPage() {
                 <button
                   onClick={handlePlayHero}
                   className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${isGenerating
-                      ? 'bg-yellow-500 text-white animate-pulse'
-                      : isPlaying
-                        ? 'bg-red-500 text-white'
-                        : (theme === 'light' ? 'bg-black text-white' : 'bg-white text-black')
+                    ? 'bg-yellow-500 text-white animate-pulse'
+                    : isPlaying
+                      ? 'bg-red-500 text-white'
+                      : (theme === 'light' ? 'bg-black text-white' : 'bg-white text-black')
                     }`}
                 >
                   {isGenerating ? (

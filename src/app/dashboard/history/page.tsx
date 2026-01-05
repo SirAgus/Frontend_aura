@@ -7,7 +7,7 @@ import Link from 'next/link';
 import DashboardSidebar from '../../../components/DashboardSidebar';
 import { useRef } from 'react'; // Ensure useRef is imported
 
-const API_BASE = 'http://localhost:8000';
+const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 const getAuth = () => {
     const auth = localStorage.getItem('voice_auth');
