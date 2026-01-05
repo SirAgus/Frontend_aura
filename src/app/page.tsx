@@ -4,6 +4,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Moon, Sun, Mic, Activity, Cpu, Languages, Play, X, Menu, ArrowRight, User, Lock, Mail, Globe, Pause } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
+import CursorTrail from '@/components/CursorTrail';
 
 // Translations
 const translations = {
@@ -113,7 +114,7 @@ const translations = {
 
 export default function LandingPage() {
   const router = useRouter();
-  const [theme, setTheme] = useState('light');
+  const [theme, setTheme] = useState<'light' | 'dark'>('light');
   const [lang, setLang] = useState<'es' | 'en'>('es');
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -346,6 +347,7 @@ export default function LandingPage() {
 
   return (
     <div className={`min-h-screen transition-colors duration-500 ease-in-out font-sans ${themeClasses} flex flex-col overflow-x-hidden relative`}>
+      <CursorTrail theme={theme} />
       <audio ref={audioRef} className="hidden" />
 
       {/* Navigation Bar */}
@@ -536,13 +538,12 @@ export default function LandingPage() {
               <div className={`inline-flex items-center gap-6 p-2 pr-8 rounded-full border ${borderClass} ${theme === 'light' ? 'bg-white/50' : 'bg-black/50'} backdrop-blur-sm`}>
                 <button
                   onClick={handlePlayHero}
-                  className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${
-                    isGenerating
+                  className={`w-16 h-16 rounded-full flex items-center justify-center transition-all ${isGenerating
                       ? 'bg-yellow-500 text-white animate-pulse'
                       : isPlaying
                         ? 'bg-red-500 text-white'
                         : (theme === 'light' ? 'bg-black text-white' : 'bg-white text-black')
-                  }`}
+                    }`}
                 >
                   {isGenerating ? (
                     <div className="w-6 h-6 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -707,9 +708,9 @@ export default function LandingPage() {
                 </div>
               )}
             </div>
-            <a 
-              href="https://www.linkedin.com/in/fernign/" 
-              target="_blank" 
+            <a
+              href="https://www.linkedin.com/in/fernign/"
+              target="_blank"
               rel="noopener noreferrer"
               className="hover:text-current transition-colors"
             >
