@@ -27,11 +27,11 @@ const translations = {
         voiceLab: 'Laboratorio de Voz',
         history: 'Historial',
         apiSettings: 'Configuración API',
-        synthesizing: 'GENERANDO AUDIO...',
+        synthesizing: 'GENERANDO...',
         liveEditor: 'EDITOR NEURONAL',
         typePlaceholder: 'Escribe el texto que deseas que la IA lea...',
-        generate: 'GENERAR AUDIO',
-        quickDemo: 'DEMO RÁPIDO',
+        generate: 'GENERAR',
+        quickDemo: 'DEMO',
         voicesTitle: 'BIBLIOTECA DE VOCES',
         uploadRef: 'Clonar Voz (Subir Audio)',
         selectVoice: 'SELECCIONAR VOZ',
@@ -45,9 +45,10 @@ const translations = {
         removeFile: 'Quitar',
         mode: 'MODO',
         turbo: 'TURBO',
-        multilingual: 'MULTILINGÜE',
+        multilingual: 'MULTI',
+        original: 'ORIGINAL',
         languageId: 'IDIOMA',
-        advancedSettings: 'CONFIGURACIÓN AVANZADA',
+        advancedSettings: 'AJUSTES',
         temperature: 'TEMPERATURA',
         exaggeration: 'EXAGERACIÓN',
         cfg: 'CFG',
@@ -60,6 +61,8 @@ const translations = {
         topPDesc: 'Controla diversidad de palabras',
         paralinguisticTags: 'TAGS PARALINGÜÍSTICOS (TURBO)',
         clickToInsert: 'Clic para insertar',
+        play: 'REPRODUCIR',
+        pause: 'PAUSAR',
     },
     en: {
         statusOnline: 'STATUS: ONLINE',
@@ -69,11 +72,11 @@ const translations = {
         voiceLab: 'Voice Lab',
         history: 'History',
         apiSettings: 'API Settings',
-        synthesizing: 'GENERATING AUDIO...',
+        synthesizing: 'GENERATING...',
         liveEditor: 'NEURAL EDITOR',
         typePlaceholder: 'Type the text you want the AI to read...',
-        generate: 'GENERATE AUDIO',
-        quickDemo: 'QUICK DEMO',
+        generate: 'GENERATE',
+        quickDemo: 'DEMO',
         voicesTitle: 'VOICE LIBRARY',
         uploadRef: 'Clone Voice (Upload Audio)',
         selectVoice: 'SELECT VOICE',
@@ -87,9 +90,10 @@ const translations = {
         removeFile: 'Remove',
         mode: 'MODE',
         turbo: 'TURBO',
-        multilingual: 'MULTILINGUAL',
-        languageId: 'LANGUAGE',
-        advancedSettings: 'ADVANCED SETTINGS',
+        multilingual: 'MULTI',
+        original: 'ORIGINAL',
+        languageId: 'LANG',
+        advancedSettings: 'SETTINGS',
         temperature: 'TEMPERATURE',
         exaggeration: 'EXAGGERATION',
         cfg: 'CFG',
@@ -102,6 +106,8 @@ const translations = {
         topPDesc: 'Controls word diversity',
         paralinguisticTags: 'PARALINGUISTIC TAGS (TURBO)',
         clickToInsert: 'Click to insert',
+        play: 'PLAY',
+        pause: 'PAUSE',
     }
 };
 
@@ -156,7 +162,7 @@ export default function SynthesisPage() {
     const [isPlaying, setIsPlaying] = useState(false);
 
     // New mode and language parameters
-    const [selectedMode, setSelectedMode] = useState<'turbo' | 'multilingual'>('multilingual');
+    const [selectedMode, setSelectedMode] = useState<'turbo' | 'multilingual' | 'original'>('multilingual');
     const [languageId, setLanguageId] = useState('es');
 
     // Advanced parameters
@@ -165,7 +171,115 @@ export default function SynthesisPage() {
     const [cfg, setCfg] = useState(1.0);
     const [repetitionPenalty, setRepetitionPenalty] = useState(2.0);
     const [topP, setTopP] = useState(1.0);
+    const [ambienceId, setAmbienceId] = useState('');
     const [showAdvanced, setShowAdvanced] = useState(false);
+
+    // Style / Emotion System
+    const [selectedStyle, setSelectedStyle] = useState('animated');
+
+    // Visualizer State
+    const [frequencyData, setFrequencyData] = useState<number[]>(new Array(40).fill(0));
+    const audioContextRef = useRef<AudioContext | null>(null);
+    const analyserRef = useRef<AnalyserNode | null>(null);
+    const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+    const animationFrameRef = useRef<number | null>(null);
+
+    const STYLE_PRESETS: Record<string, any> = {
+        animated: { label: '✨ Animated (Animada)', temp: 1.2, exag: 2.0, cfg: 1.0, topP: 0.95, rep: 1.2 },
+        neutral: { label: '😐 Neutral', temp: 0.75, exag: 0.5, cfg: 2.0, topP: 0.9, rep: 2.0 },
+        sad: { label: '😢 Sad (Triste)', temp: 0.4, exag: 0.0, cfg: 3.0, topP: 0.8, rep: 2.0 },
+        serious: { label: '🤔 Serious (Serio)', temp: 0.3, exag: 0.1, cfg: 4.0, topP: 0.7, rep: 2.5 },
+        happy: { label: '😄 Happy (Feliz)', temp: 1.35, exag: 2.5, cfg: 0.8, topP: 1.0, rep: 1.15 },
+        terrified: { label: '😱 Terrified (Aterrado)', temp: 1.5, exag: 4.0, cfg: 0.5, topP: 1.0, rep: 1.1 },
+    };
+
+    // Visualization Loop
+    useEffect(() => {
+        let animationFrame: number;
+
+        const cleanupSource = () => {
+            if (sourceRef.current) {
+                try {
+                    sourceRef.current.disconnect();
+                } catch (e) { }
+                sourceRef.current = null;
+            }
+        };
+
+        if (isPlaying && audioRef.current && audioUrl) {
+            try {
+                if (!audioContextRef.current) {
+                    audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+                    analyserRef.current = audioContextRef.current.createAnalyser();
+                    analyserRef.current.fftSize = 256;
+                }
+
+                // Recreate source every time the audio element is remounted or changed
+                // MediaElementSource is strictly tied to a DOM node.
+                cleanupSource();
+                sourceRef.current = audioContextRef.current.createMediaElementSource(audioRef.current);
+                sourceRef.current.connect(analyserRef.current!);
+                analyserRef.current!.connect(audioContextRef.current.destination);
+
+                if (audioContextRef.current.state === 'suspended') {
+                    audioContextRef.current.resume();
+                }
+
+                const analyser = analyserRef.current;
+                if (!analyser) return;
+
+                const bufferLength = analyser.frequencyBinCount;
+                const dataArray = new Uint8Array(bufferLength);
+
+                const update = () => {
+                    if (analyser) {
+                        analyser.getByteFrequencyData(dataArray);
+                        const bars = [];
+                        for (let i = 0; i < 40; i++) {
+                            const val = dataArray[i * 2] / 255;
+                            bars.push(val);
+                        }
+                        setFrequencyData(bars);
+                        animationFrame = requestAnimationFrame(update);
+                    }
+                };
+                update();
+            } catch (e) {
+                console.error("Audio visualization error:", e);
+            }
+        } else {
+            setFrequencyData(new Array(40).fill(0));
+        }
+
+        return () => {
+            if (animationFrame) cancelAnimationFrame(animationFrame);
+            // We don't cleanup the context itself to reuse it, 
+            // but we might want to cleanup the source if we're stopping/changing
+            // However, createMediaElementSource can only be called ONCE per element.
+            // Since React remounts the element on audioUrl change, we are safe.
+        };
+    }, [isPlaying, audioUrl]);
+
+    // Apply presets when style changes
+    useEffect(() => {
+        if (STYLE_PRESETS[selectedStyle]) {
+            const s = STYLE_PRESETS[selectedStyle];
+            setTemperature(s.temp);
+            setExaggeration(s.exag);
+            setCfg(s.cfg);
+            setTopP(s.topP);
+            setRepetitionPenalty(s.rep);
+        }
+    }, [selectedStyle]);
+
+    const AMBIENCE_OPTIONS = [
+        { id: '', label: 'None' },
+        { id: 'rain', label: 'Rain (Lluvia)' },
+        { id: 'birds', label: 'Birds (Pajaros)' },
+        { id: 'storm', label: 'Storm (Tormenta)' },
+        { id: 'office', label: 'Urban (Ciudad/Oficina)' },
+        { id: 'static_noise', label: 'Static (Ruido Blanco)' },
+    ];
 
     // State for voices (now objects)
     const [availableVoices, setAvailableVoices] = useState<any[]>([]);
@@ -271,6 +385,7 @@ export default function SynthesisPage() {
             formData.append('cfg', cfg.toString());
             formData.append('repetition_penalty', repetitionPenalty.toString());
             formData.append('top_p', topP.toString());
+            formData.append('ambience_id', ambienceId);
 
             if (file) {
                 formData.append('audio_prompt', file);
@@ -365,17 +480,18 @@ export default function SynthesisPage() {
                                 <Mic size={16} className={loading ? 'text-emerald-500 animate-pulse' : 'opacity-40'} />
                                 <span className="font-mono text-xs font-bold tracking-wider">{t.liveEditor}</span>
                             </div>
-                            <div className="flex gap-3">
+                            <div className="flex gap-2">
                                 {/* Mode Selector */}
-                                <div className="flex items-center gap-2">
-                                    <span className="font-mono text-xs opacity-60">{t.mode}:</span>
+                                <div className="flex items-center gap-1">
+                                    <span className="font-mono text-[10px] opacity-60 hidden md:inline">{t.mode}:</span>
                                     <select
                                         value={selectedMode}
                                         onChange={(e) => setSelectedMode(e.target.value as 'turbo' | 'multilingual')}
-                                        className={`px-2 py-1 text-xs border ${borderClass} bg-transparent font-mono outline-none`}
+                                        className={`px-1 py-1 text-xs border ${borderClass} bg-transparent font-mono outline-none max-w-[80px]`}
                                     >
                                         <option value="turbo">{t.turbo}</option>
                                         <option value="multilingual">{t.multilingual}</option>
+                                        <option value="original">{t.original}</option>
                                     </select>
                                 </div>
 
@@ -383,16 +499,16 @@ export default function SynthesisPage() {
                                 {selectedMode === 'multilingual' && (
                                     <>
                                         <div className={`h-6 w-[1px] ${borderClass}`}></div>
-                                        <div className="flex items-center gap-2">
-                                            <span className="font-mono text-xs opacity-60">{t.languageId}:</span>
+                                        <div className="flex items-center gap-1">
+                                            <span className="font-mono text-[10px] opacity-60 hidden md:inline">{t.languageId}:</span>
                                             <select
                                                 value={languageId}
                                                 onChange={(e) => setLanguageId(e.target.value)}
-                                                className={`px-2 py-1 text-xs border ${borderClass} bg-transparent font-mono outline-none max-w-[100px]`}
+                                                className={`px-1 py-1 text-xs border ${borderClass} bg-transparent font-mono outline-none max-w-[80px]`}
                                             >
                                                 {MULTILINGUAL_LANGS.map((lang) => (
                                                     <option key={lang.code} value={lang.code}>
-                                                        {lang.code.toUpperCase()} - {lang.name}
+                                                        {lang.code.toUpperCase()}
                                                     </option>
                                                 ))}
                                             </select>
@@ -400,13 +516,33 @@ export default function SynthesisPage() {
                                     </>
                                 )}
 
-                                {/* Tags Selector (Only for Turbo) */}
-                                {selectedMode === 'turbo' && PARALINGUISTIC_TAGS && (
+                                {(selectedMode === 'multilingual' || selectedMode === 'original') && (
+                                    <>
+                                        <div className={`h-6 w-[1px] ${borderClass}`}></div>
+                                        <div className="flex items-center gap-1">
+                                            <span className="font-mono text-[10px] opacity-60 hidden md:inline">STYLE:</span>
+                                            <select
+                                                value={selectedStyle}
+                                                onChange={(e) => setSelectedStyle(e.target.value)}
+                                                className={`px-1 py-1 text-xs border ${borderClass} bg-transparent font-mono outline-none max-w-[100px] text-ellipsis overflow-hidden`}
+                                            >
+                                                {Object.entries(STYLE_PRESETS).map(([key, style]) => (
+                                                    <option key={key} value={key}>
+                                                        {style.label.split('(')[0].trim()}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* Tags Selector (For Turbo & Original) */}
+                                {(selectedMode === 'turbo' || selectedMode === 'original') && PARALINGUISTIC_TAGS && (
                                     <>
                                         <div className={`h-6 w-[1px] ${borderClass}`}></div>
                                         <div className="flex items-center gap-2 group relative">
-                                            <button className="px-2 py-1 text-xs font-mono border border-emerald-500/30 rounded bg-emerald-500/5 text-emerald-500 hover:bg-emerald-500/10 transition-colors flex items-center gap-1">
-                                                <Sparkles size={10} /> TAGS
+                                            <button className="px-2 py-1 text-[10px] font-mono border border-emerald-500/30 rounded bg-emerald-500/5 text-emerald-500 hover:bg-emerald-500/10 transition-colors flex items-center gap-1">
+                                                <Sparkles size={8} /> TAGS
                                             </button>
 
                                             {/* Dropdown Menu */}
@@ -429,21 +565,22 @@ export default function SynthesisPage() {
                                     </>
                                 )}
 
-                                <div className={`h-6 w-[1px] ${borderClass}`}></div>
+                                <div className={`h-6 w-[1px] ${borderClass} hidden md:block`}></div>
 
                                 {/* Advanced Settings Toggle */}
                                 <button
                                     onClick={() => setShowAdvanced(!showAdvanced)}
-                                    className={`px-3 py-1.5 rounded text-xs font-mono border ${borderClass} hover:bg-neutral-500/10 transition-colors`}
+                                    className={`px-2 py-1.5 rounded text-[10px] font-mono border ${borderClass} hover:bg-neutral-500/10 transition-colors flex items-center gap-1`}
+                                    title={t.advancedSettings}
                                 >
-                                    ⚙️ {t.advancedSettings}
+                                    <Settings size={12} /> <span className="hidden lg:inline">{t.advancedSettings}</span>
                                 </button>
 
                                 <div className={`h-6 w-[1px] ${borderClass}`}></div>
 
                                 <button
                                     onClick={() => setTextInput('')}
-                                    className="px-3 py-1.5 rounded opacity-40 hover:opacity-100 font-mono text-xs flex items-center gap-2 transition-opacity"
+                                    className="px-2 py-1.5 rounded opacity-40 hover:opacity-100 font-mono text-xs flex items-center gap-2 transition-opacity"
                                     title={t.clear}
                                 >
                                     <RefreshCw size={12} />
@@ -452,17 +589,17 @@ export default function SynthesisPage() {
                                 <button
                                     onClick={handleQuickDemo}
                                     disabled={loading}
-                                    className={`px-4 py-1.5 rounded border ${borderClass} font-bold text-xs uppercase flex items-center gap-2 hover:bg-neutral-500/5 transition-colors ${loading && 'opacity-50 cursor-not-allowed'}`}
+                                    className={`px-3 py-1.5 rounded border ${borderClass} font-bold text-[10px] uppercase flex items-center gap-1.5 hover:bg-neutral-500/5 transition-colors ${loading && 'opacity-50 cursor-not-allowed'}`}
                                 >
-                                    <Sparkles size={12} className="text-purple-500" />
-                                    {t.quickDemo}
+                                    <Sparkles size={10} className="text-purple-500" />
+                                    <span className="hidden sm:inline">{t.quickDemo}</span>
                                 </button>
                                 <button
                                     onClick={handleGenerateTTS}
                                     disabled={loading}
-                                    className={`px-6 py-1.5 rounded font-bold text-xs uppercase flex items-center gap-2 shadow-lg hover:shadow-xl hover:scale-105 transition-all active:scale-95 ${theme === 'light' ? 'bg-black text-white' : 'bg-white text-black'} ${loading && 'opacity-50 cursor-not-allowed'}`}
+                                    className={`px-4 py-1.5 rounded font-bold text-[10px] uppercase flex items-center gap-1.5 shadow-lg hover:shadow-xl hover:scale-105 transition-all active:scale-95 ${theme === 'light' ? 'bg-black text-white' : 'bg-white text-black'} ${loading && 'opacity-50 cursor-not-allowed'}`}
                                 >
-                                    <Play size={12} fill="currentColor" />
+                                    <Play size={10} fill="currentColor" />
                                     {t.generate}
                                 </button>
                             </div>
@@ -470,7 +607,7 @@ export default function SynthesisPage() {
 
                         {/* Advanced Settings Panel */}
                         {showAdvanced && (
-                            <div className={`border-b ${borderClass} p-6 bg-neutral-500/5`}>
+                            <div className={`border-b ${borderClass} p-6 bg-neutral-500/5 animate-in slide-in-from-top duration-300`}>
                                 <div className="max-w-2xl mx-auto">
                                     <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
                                         <Sparkles size={16} className="text-purple-500" />
@@ -582,12 +719,149 @@ export default function SynthesisPage() {
                                             />
                                             <p className="text-xs opacity-60 mt-1">{t.topPDesc}</p>
                                         </div>
+
+                                        {/* Ambience Selector */}
+                                        <div>
+                                            <div className="flex justify-between items-center mb-2">
+                                                <label className="font-mono text-xs opacity-80">BACKGROUND AMBIENCE</label>
+                                            </div>
+                                            <select
+                                                value={ambienceId}
+                                                onChange={(e) => setAmbienceId(e.target.value)}
+                                                className={`w-full p-2 text-xs rounded border ${borderClass} bg-transparent font-mono outline-none focus:border-purple-500 transition-colors`}
+                                            >
+                                                {AMBIENCE_OPTIONS.map(opt => (
+                                                    <option key={opt.id} value={opt.id} className={theme === 'dark' ? 'bg-black' : 'bg-white'}>
+                                                        {opt.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            <p className="text-[9px] font-mono opacity-40 mt-1 uppercase tracking-tighter">Auto-Normalización Activa</p>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        <div className="flex-1 relative p-8 overflow-y-auto">
+                        <div className="flex-1 relative p-12 overflow-y-auto">
+                            {/* Active Voice Spotlight (The "Foto" section) */}
+                            {selectedVoice && !file && (
+                                <div key={selectedVoice.name} className="absolute top-12 right-12 z-20 animate-in fade-in slide-in-from-right-10 zoom-in-95 duration-700">
+                                    <div
+                                        className={`p-6 rounded-[2rem] border ${borderClass} ${theme === 'light' ? 'bg-white/90 shadow-[20px_20px_60px_-15px_rgba(0,0,0,0.1)]' : 'bg-black/80 shadow-[20px_20px_60px_-15px_rgba(0,0,0,0.5)]'} backdrop-blur-xl flex flex-col items-center gap-4 w-48 transition-all duration-500 hover:-translate-y-2 group animate-float relative overflow-hidden`}
+                                        style={{
+                                            boxShadow: isPlaying
+                                                ? `0px 20px 40px -10px ${theme === 'light' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)'}`
+                                                : undefined
+                                        }}
+                                    >
+                                        <div className="relative">
+                                            {/* Ambient Glow that pulses with audio frequencies */}
+                                            <div
+                                                className={`absolute -inset-6 rounded-full blur-2xl transition-all duration-300 ${isPlaying ? 'bg-emerald-500 opacity-30 shadow-[0_0_50px_rgba(16,185,129,0.3)]' : 'bg-purple-500 opacity-5'}`}
+                                                style={{
+                                                    transform: isPlaying ? `scale(${1 + (frequencyData.reduce((a, b) => a + b, 0) / 40) * 0.4})` : 'scale(1)'
+                                                }}
+                                            ></div>
+
+                                            {/* Photo/Avatar Circle */}
+                                            <button
+                                                disabled={!audioUrl && !loading}
+                                                onClick={() => {
+                                                    if (audioUrl && audioRef.current) {
+                                                        if (isPlaying) audioRef.current.pause();
+                                                        else audioRef.current.play();
+                                                    }
+                                                }}
+                                                className={`w-28 h-28 rounded-full flex items-center justify-center relative z-10 transition-all duration-700 overflow-hidden cursor-pointer ${isPlaying ? 'rotate-[10deg] scale-105' : 'hover:scale-105'} ${theme === 'light' ? 'bg-neutral-900 text-white' : 'bg-white text-black'} shadow-2xl group/btn`}
+                                            >
+                                                {/* Text Initial or Loading Spinner */}
+                                                <div className={`text-4xl font-black transition-all duration-500 ${audioUrl ? 'group-hover/btn:opacity-0 group-hover/btn:scale-50' : ''}`}>
+                                                    {loading ? <Loader2 size={32} className="animate-spin opacity-40" /> : selectedVoice.name.charAt(0).toUpperCase()}
+                                                </div>
+
+                                                {/* Play/Pause Overlay when audio is ready */}
+                                                {audioUrl && (
+                                                    <div className={`absolute inset-0 flex items-center justify-center bg-emerald-500 text-white transition-all duration-500 ${isPlaying ? 'opacity-100' : 'opacity-0 translate-y-4 group-hover/btn:opacity-100 group-hover/btn:translate-y-0'}`}>
+                                                        {isPlaying ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1" />}
+                                                    </div>
+                                                )}
+
+                                                {/* Rotating Ring during playback */}
+                                                {isPlaying && (
+                                                    <div className="absolute inset-0 border-4 border-emerald-500/10 rounded-full animate-pulse">
+                                                        <div className="absolute -inset-1 rounded-full border-2 border-emerald-500 border-dashed animate-spin-slow opacity-30"></div>
+                                                    </div>
+                                                )}
+                                            </button>
+
+                                            {/* Mini Action Buttons: Small Play and Download */}
+                                            {audioUrl && (
+                                                <div
+                                                    className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20 transition-transform duration-75"
+                                                    style={{
+                                                        transform: isPlaying
+                                                            ? `translateX(-50%) translateY(${Math.sin(Date.now() / 50) * 2}px) scale(${1 + (frequencyData.reduce((a, b) => a + b, 0) / frequencyData.length) * 0.2})`
+                                                            : 'translateX(-50%)'
+                                                    }}
+                                                >
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            if (audioRef.current) {
+                                                                if (isPlaying) audioRef.current.pause();
+                                                                else audioRef.current.play();
+                                                            }
+                                                        }}
+                                                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-xl border ${borderClass} ${isPlaying ? 'bg-red-500 text-white border-red-400' : (theme === 'light' ? 'bg-white text-black border-neutral-200' : 'bg-black text-white border-neutral-800')}`}
+                                                        title={isPlaying ? t.pause : t.play}
+                                                    >
+                                                        {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
+                                                    </button>
+                                                    <a
+                                                        href={audioUrl}
+                                                        download={`aura_synthesis_${Date.now()}.wav`}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-xl border ${borderClass} ${theme === 'light' ? 'bg-white text-black border-neutral-200' : 'bg-black text-white border-neutral-800'}`}
+                                                        title={t.download}
+                                                    >
+                                                        <Download size={14} />
+                                                    </a>
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="text-center relative z-10 pt-2">
+                                            <div className="text-sm font-black uppercase tracking-[0.2em] mb-1">{selectedVoice.name}</div>
+                                            <div className="flex items-center justify-center gap-2">
+                                                {loading ? (
+                                                    <span className="text-[9px] font-mono text-emerald-500 animate-pulse uppercase tracking-widest">{t.synthesizing}</span>
+                                                ) : (
+                                                    <>
+                                                        <span className="text-[9px] font-mono opacity-40 uppercase">{selectedVoice.gender}</span>
+                                                        <div className="w-1 h-1 rounded-full bg-neutral-500/20"></div>
+                                                        <span className="text-[9px] font-mono opacity-40 uppercase">{selectedVoice.region}</span>
+                                                    </>
+                                                )}
+                                            </div>
+                                        </div>
+
+                                        {/* Dynamic EQ Visualization inside the card */}
+                                        <div className="w-full flex justify-center items-end gap-1 h-6">
+                                            {frequencyData.slice(0, 12).map((val, i) => (
+                                                <div
+                                                    key={i}
+                                                    className={`w-1 rounded-full transition-all duration-150 ${isPlaying ? 'bg-emerald-500' : 'bg-neutral-500/20'}`}
+                                                    style={{
+                                                        height: isPlaying ? `${15 + val * 85}%` : '15%',
+                                                    }}
+                                                />
+                                            ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            )}
+
                             <textarea
                                 value={textInput}
                                 onChange={(e) => setTextInput(e.target.value)}
@@ -608,60 +882,16 @@ export default function SynthesisPage() {
                             )}
                         </div>
 
-                        {/* Audio Player Bar */}
+                        {/* Hidden Audio Element */}
                         {audioUrl && (
-                            <div className={`border-t ${borderClass} p-6 ${theme === 'light' ? 'bg-white' : 'bg-[#0f0f0f]'} animate-in slide-in-from-bottom-full duration-300`}>
-
-                                <div className="flex items-center gap-6">
-                                    <button
-                                        onClick={() => {
-                                            if (audioRef.current) {
-                                                if (isPlaying) audioRef.current.pause();
-                                                else audioRef.current.play();
-                                            }
-                                        }}
-                                        className={`w-14 h-14 rounded-full flex items-center justify-center transition-all hover:scale-105 active:scale-95 shadow-lg ${isPlaying ? 'bg-red-500 text-white' : (theme === 'light' ? 'bg-black text-white' : 'bg-white text-black')}`}
-                                    >
-                                        {isPlaying ? <Pause size={24} fill="currentColor" /> : <Play size={24} fill="currentColor" className="ml-1" />}
-                                    </button>
-
-                                    <div className="flex-1 flex flex-col gap-2">
-                                        <div className="flex justify-between items-end">
-                                            <span className="text-[10px] font-mono font-bold uppercase tracking-widest opacity-40">{t.generatedOutput}</span>
-                                            <a
-                                                href={audioUrl}
-                                                download={`aura_synthesis_${Date.now()}.wav`}
-                                                className={`text-xs font-bold uppercase flex items-center gap-1 hover:text-emerald-500 transition-colors`}
-                                            >
-                                                <Download size={14} /> {t.download}
-                                            </a>
-                                        </div>
-
-                                        {/* Waveform Visualization Placeholder */}
-                                        <div className={`h-12 w-full rounded flex items-center gap-1 overflow-hidden opacity-50`}>
-                                            {[...Array(40)].map((_, i) => (
-                                                <div
-                                                    key={i}
-                                                    className={`flex-1 rounded-full transition-all duration-150 ${theme === 'light' ? 'bg-black' : 'bg-white'}`}
-                                                    style={{
-                                                        height: isPlaying ? `${20 + Math.random() * 80}%` : '20%',
-                                                        opacity: isPlaying ? 1 : 0.3
-                                                    }}
-                                                />
-                                            ))}
-                                        </div>
-                                    </div>
-                                </div>
-
-                                <audio
-                                    ref={audioRef}
-                                    src={audioUrl}
-                                    onPlay={() => setIsPlaying(true)}
-                                    onPause={() => setIsPlaying(false)}
-                                    onEnded={() => setIsPlaying(false)}
-                                    className="hidden"
-                                />
-                            </div>
+                            <audio
+                                ref={audioRef}
+                                src={audioUrl}
+                                onPlay={() => setIsPlaying(true)}
+                                onPause={() => setIsPlaying(false)}
+                                onEnded={() => setIsPlaying(false)}
+                                className="hidden"
+                            />
                         )}
                     </div>
 
@@ -726,30 +956,34 @@ export default function SynthesisPage() {
                                                     }
                                                 } else if (voice.model === 'chatterbox-turbo' || voice.model === 'chatterbox-original') {
                                                     setSelectedMode('turbo');
-                                                    // Turbo doesn't need language_id change usually, or defaults to ES
                                                 }
                                             }}
-                                            className={`w-full p-3 rounded-lg border text-left flex items-start gap-3 transition-all ${selectedVoice?.name === voice.name && !file
-                                                ? (theme === 'light' ? 'bg-black text-white border-black shadow-lg scale-[1.02]' : 'bg-white text-black border-white shadow-lg scale-[1.02]')
+                                            className={`w-full p-4 rounded-xl border text-left flex items-start gap-3 transition-all duration-300 relative overflow-hidden group/voice ${selectedVoice?.name === voice.name && !file
+                                                ? (theme === 'light' ? 'bg-white border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] scale-[1.02] z-10' : 'bg-[#1a1a1a] border-white shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] scale-[1.02] z-10')
                                                 : `${borderClass} hover:bg-neutral-500/5 hover:border-neutral-400 opacity-60 hover:opacity-100`
                                                 }`}
                                         >
-                                            <div className={`w-8 h-8 shrink-0 rounded-full flex items-center justify-center font-bold text-xs ${selectedVoice?.name === voice.name && !file
-                                                ? (theme === 'light' ? 'bg-white text-black' : 'bg-black text-white')
-                                                : 'bg-neutral-500/20'
+                                            <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center font-bold text-sm transition-transform duration-500 group-hover/voice:rotate-12 ${selectedVoice?.name === voice.name && !file
+                                                ? (theme === 'light' ? 'bg-black text-white' : 'bg-white text-black')
+                                                : 'bg-neutral-500/10'
                                                 }`}>
                                                 {voice.name.charAt(0).toUpperCase()}
                                             </div>
-                                            <div className="min-w-0">
-                                                <div className="font-bold text-sm truncate flex items-center gap-2">
+                                            <div className="min-w-0 flex-1">
+                                                <div className="font-black text-sm truncate flex items-center gap-2 tracking-tight">
                                                     {voice.name}
-                                                    {voice.region && voice.region !== '?' && <span className={`text-[9px] px-1 rounded border opacity-60 ${selectedVoice?.name === voice.name ? 'border-current' : 'border-neutral-500'}`}>{voice.region}</span>}
+                                                    {voice.region && voice.region !== '?' && <span className={`text-[8px] px-1 rounded-sm border font-mono opacity-60 ${selectedVoice?.name === voice.name ? 'border-current' : 'border-neutral-500'}`}>{voice.region}</span>}
                                                 </div>
-                                                <div className="text-[10px] opacity-60 font-mono truncate">
+                                                <div className="text-[10px] opacity-40 font-mono truncate uppercase mt-0.5">
                                                     {(!voice.language || voice.language === '?') ? 'STANDARD' : `${voice.language?.toUpperCase()} • ${voice.gender?.toUpperCase()}`}
                                                 </div>
                                             </div>
-                                            {selectedVoice?.name === voice.name && !file && <div className="ml-auto w-2 h-2 rounded-full bg-emerald-500 animate-pulse mt-1.5"></div>}
+                                            {selectedVoice?.name === voice.name && !file && (
+                                                <div className="ml-auto flex flex-col items-end gap-1">
+                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></div>
+                                                    <Waves size={10} className="opacity-20 translate-y-2 group-hover/voice:translate-y-0 transition-transform" />
+                                                </div>
+                                            )}
                                         </button>
                                     ))}
                                 </div>
@@ -759,6 +993,6 @@ export default function SynthesisPage() {
                     </div>
                 </div>
             </div>
-        </div>
+        </div >
     );
 }

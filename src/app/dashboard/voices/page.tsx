@@ -60,7 +60,6 @@ export default function VoiceLabPage() {
 
     // State for new fields
     const [voiceName, setVoiceName] = useState('');
-    const [model, setModel] = useState('chatterbox-turbo');
     const [language, setLanguage] = useState('es');
     const [region, setRegion] = useState('');
     const [gender, setGender] = useState('female');
@@ -145,7 +144,7 @@ export default function VoiceLabPage() {
         const formData = new FormData();
         formData.append('name', voiceName);
         formData.append('file', file);
-        formData.append('model', model);
+        formData.append('model', 'chatterbox-turbo');
         formData.append('language', language);
         formData.append('region', region);
         formData.append('gender', gender);
@@ -366,31 +365,7 @@ export default function VoiceLabPage() {
                                     />
                                 </div>
 
-                                <div className="mb-4">
-                                    <label className="block text-xs font-mono uppercase opacity-60 mb-2">Model</label>
-                                    <select
-                                        value={model}
-                                        onChange={(e) => setModel(e.target.value)}
-                                        className={`w-full p-3 rounded-lg outline-none border focus:border-emerald-500 transition-colors ${inputClass}`}
-                                    >
-                                        <option value="chatterbox-turbo">Chatterbox-Turbo</option>
-                                        <option value="chatterbox-multilingual">Chatterbox-Multilingual</option>
-                                        <option value="chatterbox-original">Chatterbox (Original)</option>
-                                    </select>
 
-                                    {model === 'chatterbox-turbo' && (
-                                        <div className="mt-3 p-3 rounded bg-emerald-500/5 border border-emerald-500/10">
-                                            <p className="text-[10px] font-bold uppercase text-emerald-500 mb-2 tracking-wider">✅ Supports Paralinguistic Tags</p>
-                                            <div className="flex flex-wrap gap-1.5">
-                                                {PARALINGUISTIC_TAGS.map(tag => (
-                                                    <span key={tag} className="px-2 py-1 text-[10px] font-mono bg-white dark:bg-black border border-emerald-500/20 rounded text-neutral-600 dark:text-neutral-400">
-                                                        {tag}
-                                                    </span>
-                                                ))}
-                                            </div>
-                                        </div>
-                                    )}
-                                </div>
 
                                 <div className="grid grid-cols-2 gap-4 mb-4">
                                     <div>
@@ -400,17 +375,9 @@ export default function VoiceLabPage() {
                                             onChange={(e) => setLanguage(e.target.value)}
                                             className={`w-full p-3 rounded-lg outline-none border focus:border-emerald-500 transition-colors ${inputClass}`}
                                         >
-                                            {model === 'chatterbox-multilingual' ? (
-                                                MULTILINGUAL_LANGS.map(l => (
-                                                    <option key={l.code} value={l.code}>{l.name} ({l.code})</option>
-                                                ))
-                                            ) : (
-                                                <>
-                                                    <option value="es">Español</option>
-                                                    <option value="en">English</option>
-                                                    <option value="pt">Português</option>
-                                                </>
-                                            )}
+                                            <option value="es">Español</option>
+                                            <option value="en">English</option>
+                                            <option value="pt">Português</option>
                                         </select>
                                     </div>
                                     <div>
