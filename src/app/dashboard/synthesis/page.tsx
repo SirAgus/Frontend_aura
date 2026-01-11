@@ -58,6 +58,8 @@ const translations = {
         cfgDesc: 'Más bajo = más libertad y naturalidad',
         repetitionPenaltyDesc: 'Más alto = menos repeticiones',
         topPDesc: 'Controla diversidad de palabras',
+        paralinguisticTags: 'TAGS PARALINGÜÍSTICOS (TURBO)',
+        clickToInsert: 'Clic para insertar',
     },
     en: {
         statusOnline: 'STATUS: ONLINE',
@@ -98,8 +100,48 @@ const translations = {
         cfgDesc: 'Lower = more freedom and naturalness',
         repetitionPenaltyDesc: 'Higher = fewer repetitions',
         topPDesc: 'Controls word diversity',
+        paralinguisticTags: 'PARALINGUISTIC TAGS (TURBO)',
+        clickToInsert: 'Click to insert',
     }
 };
+
+const PARALINGUISTIC_TAGS = [
+    { label: 'Carraspeo', tag: '[clear throat]' },
+    { label: 'Suspiro', tag: '[sigh]' },
+    { label: 'Chistar', tag: '[shush]' },
+    { label: 'Tos', tag: '[cough]' },
+    { label: 'Quejido', tag: '[groan]' },
+    { label: 'Olfatear', tag: '[sniff]' },
+    { label: 'Jadeo', tag: '[gasp]' },
+    { label: 'Risita', tag: '[chuckle]' },
+    { label: 'Risa', tag: '[laugh]' },
+];
+
+const MULTILINGUAL_LANGS = [
+    { code: 'ar', name: 'Arabic' },
+    { code: 'pt', name: 'Brazilian Portuguese' },
+    { code: 'zh', name: 'Chinese' },
+    { code: 'cs', name: 'Czech' },
+    { code: 'nl', name: 'Dutch' },
+    { code: 'en', name: 'English' },
+    { code: 'fr', name: 'French' },
+    { code: 'de', name: 'German' },
+    { code: 'hi', name: 'Hindi' },
+    { code: 'hu', name: 'Hungarian' },
+    { code: 'it', name: 'Italian' },
+    { code: 'ja', name: 'Japanese' },
+    { code: 'ko', name: 'Korean' },
+    { code: 'pl', name: 'Polish' },
+    { code: 'ru', name: 'Russian' },
+    { code: 'es', name: 'Spanish' },
+    { code: 'tr', name: 'Turkish' },
+    { code: 'da', name: 'Danish' },
+    { code: 'fi', name: 'Finnish' },
+    { code: 'no', name: 'Norwegian' },
+    { code: 'sv', name: 'Swedish' },
+    { code: 'bg', name: 'Bulgarian' },
+    { code: 'uk', name: 'Ukrainian' }
+];
 
 export default function SynthesisPage() {
     const router = useRouter();
@@ -346,20 +388,43 @@ export default function SynthesisPage() {
                                             <select
                                                 value={languageId}
                                                 onChange={(e) => setLanguageId(e.target.value)}
-                                                className={`px-2 py-1 text-xs border ${borderClass} bg-transparent font-mono outline-none`}
+                                                className={`px-2 py-1 text-xs border ${borderClass} bg-transparent font-mono outline-none max-w-[100px]`}
                                             >
-                                                <option value="es">ES</option>
-                                                <option value="en">EN</option>
-                                                <option value="fr">FR</option>
-                                                <option value="it">IT</option>
-                                                <option value="jp">JP</option>
-                                                <option value="de">DE</option>
-                                                <option value="pt">PT</option>
-                                                <option value="ru">RU</option>
-                                                <option value="zh">ZH</option>
-                                                <option value="ko">KO</option>
-                                                <option value="ar">AR</option>
+                                                {MULTILINGUAL_LANGS.map((lang) => (
+                                                    <option key={lang.code} value={lang.code}>
+                                                        {lang.code.toUpperCase()} - {lang.name}
+                                                    </option>
+                                                ))}
                                             </select>
+                                        </div>
+                                    </>
+                                )}
+
+                                {/* Tags Selector (Only for Turbo) */}
+                                {selectedMode === 'turbo' && PARALINGUISTIC_TAGS && (
+                                    <>
+                                        <div className={`h-6 w-[1px] ${borderClass}`}></div>
+                                        <div className="flex items-center gap-2 group relative">
+                                            <button className="px-2 py-1 text-xs font-mono border border-emerald-500/30 rounded bg-emerald-500/5 text-emerald-500 hover:bg-emerald-500/10 transition-colors flex items-center gap-1">
+                                                <Sparkles size={10} /> TAGS
+                                            </button>
+
+                                            {/* Dropdown Menu */}
+                                            <div className="absolute top-full right-0 mt-2 w-48 p-2 rounded-xl border bg-white dark:bg-black shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">
+                                                <div className="text-[10px] uppercase font-bold opacity-40 mb-2 px-2">{t.clickToInsert}</div>
+                                                <div className="grid grid-cols-1 gap-1">
+                                                    {PARALINGUISTIC_TAGS.map((tag) => (
+                                                        <button
+                                                            key={tag.tag}
+                                                            onClick={() => setTextInput(prev => prev + " " + tag.tag + " ")}
+                                                            className="text-xs font-mono text-left px-2 py-1.5 rounded hover:bg-neutral-500/10 transition-colors flex justify-between items-center"
+                                                        >
+                                                            <span>{tag.label}</span>
+                                                            <span className="opacity-40 text-[10px]">{tag.tag}</span>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
                                         </div>
                                     </>
                                 )}
@@ -649,7 +714,21 @@ export default function SynthesisPage() {
                                     {availableVoices.map((voice) => (
                                         <button
                                             key={voice.name}
-                                            onClick={() => { setSelectedVoice(voice); setFile(null); }}
+                                            onClick={() => {
+                                                setSelectedVoice(voice);
+                                                setFile(null);
+
+                                                // Auto-select mode and language from voice metadata
+                                                if (voice.model === 'chatterbox-multilingual') {
+                                                    setSelectedMode('multilingual');
+                                                    if (voice.language && voice.language !== '?' && voice.language !== 'unknown') {
+                                                        setLanguageId(voice.language);
+                                                    }
+                                                } else if (voice.model === 'chatterbox-turbo' || voice.model === 'chatterbox-original') {
+                                                    setSelectedMode('turbo');
+                                                    // Turbo doesn't need language_id change usually, or defaults to ES
+                                                }
+                                            }}
                                             className={`w-full p-3 rounded-lg border text-left flex items-start gap-3 transition-all ${selectedVoice?.name === voice.name && !file
                                                 ? (theme === 'light' ? 'bg-black text-white border-black shadow-lg scale-[1.02]' : 'bg-white text-black border-white shadow-lg scale-[1.02]')
                                                 : `${borderClass} hover:bg-neutral-500/5 hover:border-neutral-400 opacity-60 hover:opacity-100`
