@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Moon, Sun, Waves, Globe, LogOut, Mic, Users, Clock, Settings, Play, Pause, Download, Sparkles, Upload, Loader2, Save, X, RefreshCw, Volume2 } from 'lucide-react';
+import { Moon, Sun, Waves, Globe, LogOut, Mic, Users, Clock, Settings, Play, Pause, Download, Sparkles, Upload, Loader2, Save, X, RefreshCw, Volume2, Search, Filter, ArrowRight, Info, Edit2, PlusCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import DashboardSidebar from '../../../components/DashboardSidebar';
@@ -172,17 +172,58 @@ export default function SynthesisPage() {
     const [repetitionPenalty, setRepetitionPenalty] = useState(2.0);
     const [topP, setTopP] = useState(1.0);
     const [ambienceId, setAmbienceId] = useState('');
+    const [ambiencePrompt, setAmbiencePrompt] = useState('');
+    const [showPromptPopup, setShowPromptPopup] = useState(false);
     const [showAdvanced, setShowAdvanced] = useState(false);
 
     // Style / Emotion System
     const [selectedStyle, setSelectedStyle] = useState('animated');
+    const [searchQuery, setSearchQuery] = useState("");
+    const [showVoiceModal, setShowVoiceModal] = useState(false);
+    const [filterGender, setFilterGender] = useState("all");
+    const [filterLanguage, setFilterLanguage] = useState("all");
 
     // Visualizer State
     const [frequencyData, setFrequencyData] = useState<number[]>(new Array(40).fill(0));
     const audioContextRef = useRef<AudioContext | null>(null);
     const analyserRef = useRef<AnalyserNode | null>(null);
     const sourceRef = useRef<MediaElementAudioSourceNode | null>(null);
+    const connectedElementRef = useRef<HTMLMediaElement | null>(null);
     const animationFrameRef = useRef<number | null>(null);
+
+    // Text Highlighter Refs
+    const textareaRef = useRef<HTMLTextAreaElement>(null);
+    const highlighterRef = useRef<HTMLDivElement>(null);
+
+    const highlightText = (text: string) => {
+        if (!text) return <span className="text-neutral-500 opacity-40 italic">{t.typePlaceholder}</span>;
+
+        // Ambience Regex: [rain], [birds], [ambience:abc], [rain:10s]
+        const ambienceRegex = /\[(ambience:[^\]]+|rain|birds|forest|beach|storm|office|cafe|lofi|static|fire|wind|ags)(?::\d+s)?\]/i;
+
+        // Emotion/Other Regex: generic [word] that is NOT ambience
+        const tagRegex = /(\[[^\]]+\])/g;
+
+        const parts = text.split(tagRegex);
+
+        return parts.map((part, i) => {
+            if (part.match(tagRegex)) {
+                // Check if it's ambience
+                if (part.match(ambienceRegex)) {
+                    return <span key={i} className="text-emerald-500 font-bold">{part}</span>;
+                }
+                // Else emotion/other
+                return <span key={i} className="text-orange-500 font-bold">{part}</span>;
+            }
+            return <span key={i}>{part}</span>;
+        });
+    };
+
+    const handleScroll = (e: React.UIEvent<HTMLTextAreaElement>) => {
+        if (highlighterRef.current) {
+            highlighterRef.current.scrollTop = e.currentTarget.scrollTop;
+        }
+    };
 
     const STYLE_PRESETS: Record<string, any> = {
         animated: { label: '✨ Animated (Animada)', temp: 1.2, exag: 2.0, cfg: 1.0, topP: 0.95, rep: 1.2 },
@@ -214,12 +255,15 @@ export default function SynthesisPage() {
                     analyserRef.current.fftSize = 256;
                 }
 
-                // Recreate source every time the audio element is remounted or changed
-                // MediaElementSource is strictly tied to a DOM node.
-                cleanupSource();
-                sourceRef.current = audioContextRef.current.createMediaElementSource(audioRef.current);
-                sourceRef.current.connect(analyserRef.current!);
-                analyserRef.current!.connect(audioContextRef.current.destination);
+                // MediaElementSource can only be created ONCE per HTMLMediaElement.
+                // We trace which element is connected to avoid the 'already connected' error.
+                if (connectedElementRef.current !== audioRef.current) {
+                    cleanupSource();
+                    sourceRef.current = audioContextRef.current.createMediaElementSource(audioRef.current);
+                    sourceRef.current.connect(analyserRef.current!);
+                    analyserRef.current!.connect(audioContextRef.current.destination);
+                    connectedElementRef.current = audioRef.current;
+                }
 
                 if (audioContextRef.current.state === 'suspended') {
                     audioContextRef.current.resume();
@@ -273,12 +317,18 @@ export default function SynthesisPage() {
     }, [selectedStyle]);
 
     const AMBIENCE_OPTIONS = [
-        { id: '', label: 'None' },
+        { id: '', label: 'None (Sin ambiente)' },
+        { id: 'ags', label: 'AGS Ambiente (Auto)' },
+        { id: 'custom', label: 'Custom (Prompt personalizado)' },
         { id: 'rain', label: 'Rain (Lluvia)' },
-        { id: 'birds', label: 'Birds (Pajaros)' },
+        { id: 'birds', label: 'Birds (Pájaros)' },
+        { id: 'forest', label: 'Forest (Bosque Intenso)' },
+        { id: 'beach', label: 'Beach (Playa)' },
         { id: 'storm', label: 'Storm (Tormenta)' },
-        { id: 'office', label: 'Urban (Ciudad/Oficina)' },
-        { id: 'static_noise', label: 'Static (Ruido Blanco)' },
+        { id: 'office', label: 'Urban (Oficina/Ciudad)' },
+        { id: 'cafe', label: 'Cafe (Cafetería)' },
+        { id: 'lofi', label: 'Lofi (Relaxing Beats)' },
+        { id: 'static', label: 'Static (Ruido Blanco)' },
     ];
 
     // State for voices (now objects)
@@ -386,6 +436,9 @@ export default function SynthesisPage() {
             formData.append('repetition_penalty', repetitionPenalty.toString());
             formData.append('top_p', topP.toString());
             formData.append('ambience_id', ambienceId);
+            if (ambienceId === 'custom' && ambiencePrompt) {
+                formData.append('ambience_prompt', ambiencePrompt);
+            }
 
             if (file) {
                 formData.append('audio_prompt', file);
@@ -429,6 +482,17 @@ export default function SynthesisPage() {
         if (availableVoices.length > 0) setSelectedVoice(availableVoices[0]);
     };
 
+    const insertAmbienceTag = () => {
+        if (!ambienceId) return;
+        let tag = '';
+        if (ambienceId === 'custom') {
+            tag = ambiencePrompt ? `[ambience:${ambiencePrompt}]` : '[ambience:...]';
+        } else {
+            tag = `[${ambienceId}]`;
+        }
+        setTextInput(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + tag + ' ');
+    };
+
     // --- UI Helpers ---
     const themeClasses = theme === 'light' ? 'bg-[#f0f0f0] text-neutral-900' : 'bg-[#0a0a0a] text-neutral-100';
     const borderClass = theme === 'light' ? 'border-neutral-300' : 'border-neutral-800';
@@ -462,15 +526,9 @@ export default function SynthesisPage() {
 
                 {/* Main Synthesis Area */}
                 <div className="flex-1 flex flex-col md:flex-row overflow-hidden relative">
-
-                    {/* Loading Overlay */}
+                    {/* Dark Backdrop Overlay during processing */}
                     {loading && (
-                        <div className="absolute inset-0 z-20 backdrop-blur-sm bg-black/10 flex items-center justify-center">
-                            <div className={`flex flex-col items-center gap-4 p-8 rounded-xl border ${borderClass} ${theme === 'light' ? 'bg-white shadow-xl' : 'bg-black shadow-2xl'}`}>
-                                <Loader2 size={32} className="animate-spin text-emerald-500" />
-                                <span className="font-mono text-sm tracking-widest animate-pulse">{t.synthesizing}</span>
-                            </div>
-                        </div>
+                        <div className="absolute inset-0 z-40 backdrop-blur-[2px] bg-black/20 transition-all duration-500 animate-in fade-in" />
                     )}
 
                     {/* Center: Input & Preview */}
@@ -604,151 +662,12 @@ export default function SynthesisPage() {
                                 </button>
                             </div>
                         </div>
-
-                        {/* Advanced Settings Panel */}
-                        {showAdvanced && (
-                            <div className={`border-b ${borderClass} p-6 bg-neutral-500/5 animate-in slide-in-from-top duration-300`}>
-                                <div className="max-w-2xl mx-auto">
-                                    <h3 className="font-bold text-sm mb-4 flex items-center gap-2">
-                                        <Sparkles size={16} className="text-purple-500" />
-                                        {t.advancedSettings}
-                                    </h3>
-
-                                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
-                                        {/* Temperature */}
-                                        <div>
-                                            <div className="flex justify-between items-center mb-2">
-                                                <label className="font-mono text-xs opacity-80">{t.temperature}</label>
-                                                <span className="font-mono text-xs text-purple-500">{temperature.toFixed(1)}</span>
-                                            </div>
-                                            <input
-                                                type="range"
-                                                min="0.1"
-                                                max="1.5"
-                                                step="0.1"
-                                                value={temperature}
-                                                onChange={(e) => setTemperature(parseFloat(e.target.value))}
-                                                className="w-full h-2 bg-neutral-300 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer"
-                                                style={{
-                                                    background: `linear-gradient(to right, rgb(168 85 247) 0%, rgb(168 85 247) ${((temperature - 0.1) / (1.5 - 0.1)) * 100}%, rgb(75 85 99) ${((temperature - 0.1) / (1.5 - 0.1)) * 100}%, rgb(75 85 99) 100%)`
-                                                }}
-                                            />
-                                            <p className="text-xs opacity-60 mt-1">{t.temperatureDesc}</p>
-                                        </div>
-
-                                        {/* Exaggeration */}
-                                        <div>
-                                            <div className="flex justify-between items-center mb-2">
-                                                <label className="font-mono text-xs opacity-80">{t.exaggeration}</label>
-                                                <span className="font-mono text-xs text-blue-500">{exaggeration.toFixed(1)}</span>
-                                            </div>
-                                            <input
-                                                type="range"
-                                                min="0.0"
-                                                max="2.0"
-                                                step="0.1"
-                                                value={exaggeration}
-                                                onChange={(e) => setExaggeration(parseFloat(e.target.value))}
-                                                className="w-full h-2 bg-neutral-300 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer"
-                                                style={{
-                                                    background: `linear-gradient(to right, rgb(59 130 246) 0%, rgb(59 130 246) ${(exaggeration / 2.0) * 100}%, rgb(75 85 99) ${(exaggeration / 2.0) * 100}%, rgb(75 85 99) 100%)`
-                                                }}
-                                            />
-                                            <p className="text-xs opacity-60 mt-1">{t.exaggerationDesc}</p>
-                                        </div>
-
-                                        {/* CFG */}
-                                        <div>
-                                            <div className="flex justify-between items-center mb-2">
-                                                <label className="font-mono text-xs opacity-80">{t.cfg}</label>
-                                                <span className="font-mono text-xs text-emerald-500">{cfg.toFixed(1)}</span>
-                                            </div>
-                                            <input
-                                                type="range"
-                                                min="0.1"
-                                                max="1.0"
-                                                step="0.1"
-                                                value={cfg}
-                                                onChange={(e) => setCfg(parseFloat(e.target.value))}
-                                                className="w-full h-2 bg-neutral-300 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer"
-                                                style={{
-                                                    background: `linear-gradient(to right, rgb(16 185 129) 0%, rgb(16 185 129) ${((cfg - 0.1) / (1.0 - 0.1)) * 100}%, rgb(75 85 99) ${((cfg - 0.1) / (1.0 - 0.1)) * 100}%, rgb(75 85 99) 100%)`
-                                                }}
-                                            />
-                                            <p className="text-xs opacity-60 mt-1">{t.cfgDesc}</p>
-                                        </div>
-
-                                        {/* Repetition Penalty */}
-                                        <div>
-                                            <div className="flex justify-between items-center mb-2">
-                                                <label className="font-mono text-xs opacity-80">{t.repetitionPenalty}</label>
-                                                <span className="font-mono text-xs text-orange-500">{repetitionPenalty.toFixed(1)}</span>
-                                            </div>
-                                            <input
-                                                type="range"
-                                                min="0.5"
-                                                max="3.0"
-                                                step="0.1"
-                                                value={repetitionPenalty}
-                                                onChange={(e) => setRepetitionPenalty(parseFloat(e.target.value))}
-                                                className="w-full h-2 bg-neutral-300 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer"
-                                                style={{
-                                                    background: `linear-gradient(to right, rgb(249 115 22) 0%, rgb(249 115 22) ${((repetitionPenalty - 0.5) / (3.0 - 0.5)) * 100}%, rgb(75 85 99) ${((repetitionPenalty - 0.5) / (3.0 - 0.5)) * 100}%, rgb(75 85 99) 100%)`
-                                                }}
-                                            />
-                                            <p className="text-xs opacity-60 mt-1">{t.repetitionPenaltyDesc}</p>
-                                        </div>
-
-                                        {/* Top-P */}
-                                        <div>
-                                            <div className="flex justify-between items-center mb-2">
-                                                <label className="font-mono text-xs opacity-80">{t.topP}</label>
-                                                <span className="font-mono text-xs text-pink-500">{topP.toFixed(1)}</span>
-                                            </div>
-                                            <input
-                                                type="range"
-                                                min="0.1"
-                                                max="1.0"
-                                                step="0.1"
-                                                value={topP}
-                                                onChange={(e) => setTopP(parseFloat(e.target.value))}
-                                                className="w-full h-2 bg-neutral-300 dark:bg-neutral-700 rounded-lg appearance-none cursor-pointer"
-                                                style={{
-                                                    background: `linear-gradient(to right, rgb(236 72 153) 0%, rgb(236 72 153) ${((topP - 0.1) / (1.0 - 0.1)) * 100}%, rgb(75 85 99) ${((topP - 0.1) / (1.0 - 0.1)) * 100}%, rgb(75 85 99) 100%)`
-                                                }}
-                                            />
-                                            <p className="text-xs opacity-60 mt-1">{t.topPDesc}</p>
-                                        </div>
-
-                                        {/* Ambience Selector */}
-                                        <div>
-                                            <div className="flex justify-between items-center mb-2">
-                                                <label className="font-mono text-xs opacity-80">BACKGROUND AMBIENCE</label>
-                                            </div>
-                                            <select
-                                                value={ambienceId}
-                                                onChange={(e) => setAmbienceId(e.target.value)}
-                                                className={`w-full p-2 text-xs rounded border ${borderClass} bg-transparent font-mono outline-none focus:border-purple-500 transition-colors`}
-                                            >
-                                                {AMBIENCE_OPTIONS.map(opt => (
-                                                    <option key={opt.id} value={opt.id} className={theme === 'dark' ? 'bg-black' : 'bg-white'}>
-                                                        {opt.label}
-                                                    </option>
-                                                ))}
-                                            </select>
-                                            <p className="text-[9px] font-mono opacity-40 mt-1 uppercase tracking-tighter">Auto-Normalización Activa</p>
-                                        </div>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
-
                         <div className="flex-1 relative p-12 overflow-y-auto">
                             {/* Active Voice Spotlight (The "Foto" section) */}
                             {selectedVoice && !file && (
-                                <div key={selectedVoice.name} className="absolute top-12 right-12 z-20 animate-in fade-in slide-in-from-right-10 zoom-in-95 duration-700">
+                                <div key={selectedVoice.name} className={`absolute top-12 right-12 animate-in fade-in slide-in-from-right-10 zoom-in-95 duration-700 ${loading ? 'z-50' : 'z-20'}`}>
                                     <div
-                                        className={`p-6 rounded-[2rem] border ${borderClass} ${theme === 'light' ? 'bg-white/90 shadow-[20px_20px_60px_-15px_rgba(0,0,0,0.1)]' : 'bg-black/80 shadow-[20px_20px_60px_-15px_rgba(0,0,0,0.5)]'} backdrop-blur-xl flex flex-col items-center gap-4 w-48 transition-all duration-500 hover:-translate-y-2 group animate-float relative overflow-hidden`}
+                                        className={`p-6 rounded-[2rem] border ${borderClass} ${theme === 'light' ? 'bg-white/90 shadow-[20px_20px_60px_-15px_rgba(0,0,0,0.1)]' : 'bg-black/80 shadow-[20px_20px_60px_-15px_rgba(0,0,0,0.5)]'} backdrop-blur-xl flex flex-col items-center gap-4 w-52 transition-all duration-500 hover:-translate-y-2 group animate-float relative overflow-hidden`}
                                         style={{
                                             boxShadow: isPlaying
                                                 ? `0px 20px 40px -10px ${theme === 'light' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(16, 185, 129, 0.1)'}`
@@ -766,67 +685,53 @@ export default function SynthesisPage() {
 
                                             {/* Photo/Avatar Circle */}
                                             <button
-                                                disabled={!audioUrl && !loading}
-                                                onClick={() => {
-                                                    if (audioUrl && audioRef.current) {
-                                                        if (isPlaying) audioRef.current.pause();
-                                                        else audioRef.current.play();
-                                                    }
-                                                }}
+                                                onClick={() => setShowVoiceModal(true)}
                                                 className={`w-28 h-28 rounded-full flex items-center justify-center relative z-10 transition-all duration-700 overflow-hidden cursor-pointer ${isPlaying ? 'rotate-[10deg] scale-105' : 'hover:scale-105'} ${theme === 'light' ? 'bg-neutral-900 text-white' : 'bg-white text-black'} shadow-2xl group/btn`}
                                             >
                                                 {/* Text Initial or Loading Spinner */}
-                                                <div className={`text-4xl font-black transition-all duration-500 ${audioUrl ? 'group-hover/btn:opacity-0 group-hover/btn:scale-50' : ''}`}>
+                                                <div className={`text-4xl font-black transition-all duration-500 group-hover/btn:opacity-0 group-hover/btn:scale-50`}>
                                                     {loading ? <Loader2 size={32} className="animate-spin opacity-40" /> : selectedVoice.name.charAt(0).toUpperCase()}
                                                 </div>
 
-                                                {/* Play/Pause Overlay when audio is ready */}
-                                                {audioUrl && (
-                                                    <div className={`absolute inset-0 flex items-center justify-center bg-emerald-500 text-white transition-all duration-500 ${isPlaying ? 'opacity-100' : 'opacity-0 translate-y-4 group-hover/btn:opacity-100 group-hover/btn:translate-y-0'}`}>
-                                                        {isPlaying ? <Pause size={32} fill="currentColor" /> : <Play size={32} fill="currentColor" className="ml-1" />}
-                                                    </div>
-                                                )}
+                                                {/* Search/Change Overlay on hover */}
+                                                <div className={`absolute inset-0 flex items-center justify-center bg-emerald-500 opacity-0 group-hover/btn:opacity-100 transition-opacity backdrop-blur-sm z-20 text-white rounded-full`}>
+                                                    <Search size={32} />
+                                                </div>
 
-                                                {/* Rotating Ring during playback */}
+                                                {/* Progress Ring during playback */}
                                                 {isPlaying && (
-                                                    <div className="absolute inset-0 border-4 border-emerald-500/10 rounded-full animate-pulse">
-                                                        <div className="absolute -inset-1 rounded-full border-2 border-emerald-500 border-dashed animate-spin-slow opacity-30"></div>
-                                                    </div>
+                                                    <div className="absolute inset-0 border-4 border-emerald-500 border-t-transparent rounded-full animate-spin duration-[3s]" />
                                                 )}
                                             </button>
 
-                                            {/* Mini Action Buttons: Small Play and Download */}
-                                            {audioUrl && (
-                                                <div
-                                                    className="absolute -bottom-4 left-1/2 -translate-x-1/2 flex items-center gap-2 z-20 transition-transform duration-75"
-                                                    style={{
-                                                        transform: isPlaying
-                                                            ? `translateX(-50%) translateY(${Math.sin(Date.now() / 50) * 2}px) scale(${1 + (frequencyData.reduce((a, b) => a + b, 0) / frequencyData.length) * 0.2})`
-                                                            : 'translateX(-50%)'
-                                                    }}
-                                                >
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            if (audioRef.current) {
-                                                                if (isPlaying) audioRef.current.pause();
-                                                                else audioRef.current.play();
-                                                            }
-                                                        }}
-                                                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-xl border ${borderClass} ${isPlaying ? 'bg-red-500 text-white border-red-400' : (theme === 'light' ? 'bg-white text-black border-neutral-200' : 'bg-black text-white border-neutral-800')}`}
-                                                        title={isPlaying ? t.pause : t.play}
-                                                    >
-                                                        {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
-                                                    </button>
-                                                    <a
-                                                        href={audioUrl}
-                                                        download={`aura_synthesis_${Date.now()}.wav`}
-                                                        onClick={(e) => e.stopPropagation()}
-                                                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-xl border ${borderClass} ${theme === 'light' ? 'bg-white text-black border-neutral-200' : 'bg-black text-white border-neutral-800'}`}
-                                                        title={t.download}
-                                                    >
-                                                        <Download size={14} />
-                                                    </a>
+                                            {/* Floating mini action buttons below avatar but inside the "box" */}
+                                            {!loading && (
+                                                <div className="absolute -bottom-2 inset-x-0 flex justify-center gap-4 z-30 animate-in slide-in-from-bottom-4 transition-transform duration-300">
+                                                    {audioUrl && (
+                                                        <button
+                                                            onClick={(e) => {
+                                                                e.stopPropagation();
+                                                                if (audioRef.current) {
+                                                                    if (isPlaying) audioRef.current.pause();
+                                                                    else audioRef.current.play();
+                                                                }
+                                                            }}
+                                                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-xl border ${borderClass} ${isPlaying ? 'bg-emerald-500 text-white border-emerald-400' : (theme === 'light' ? 'bg-white text-black' : 'bg-black text-white')}`}
+                                                        >
+                                                            {isPlaying ? <Pause size={14} fill="currentColor" /> : <Play size={14} fill="currentColor" className="ml-0.5" />}
+                                                        </button>
+                                                    )}
+                                                    {audioUrl && (
+                                                        <a
+                                                            href={audioUrl}
+                                                            download="synthesis.wav"
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-xl border ${borderClass} ${theme === 'light' ? 'bg-white text-black border-neutral-200' : 'bg-black text-white border-neutral-800'}`}
+                                                            title={t.download}
+                                                        >
+                                                            <Download size={14} />
+                                                        </a>
+                                                    )}
                                                 </div>
                                             )}
                                         </div>
@@ -859,18 +764,186 @@ export default function SynthesisPage() {
                                             ))}
                                         </div>
                                     </div>
+
+                                    {showAdvanced && (
+                                        <div className={`mt-4 p-6 rounded-[2rem] border ${theme === 'light' ? 'bg-white border-neutral-100 shadow-[0_8px_20px_rgb(0,0,0,0.04)]' : 'bg-[#0a0a0a] border-white/10 shadow-xl'} w-52 animate-in fade-in slide-in-from-top-8 zoom-in-90 duration-500 ease-out space-y-5`}>
+                                            <div className="flex items-center gap-2 mb-2 px-1 animate-in fade-in slide-in-from-left-4 duration-700 delay-150">
+                                                <Settings size={14} className="text-emerald-500 animate-spin-slow" />
+                                                <span className="font-mono text-[10px] font-bold tracking-widest uppercase opacity-60">Control Panel</span>
+                                            </div>
+
+                                            <div className="space-y-4">
+                                                {/* Temperature */}
+                                                <div className="group/set animate-in fade-in slide-in-from-top-2 duration-500 delay-200">
+                                                    <div className="flex justify-between items-center mb-1.5 px-1 text-purple-500">
+                                                        <label className="text-[9px] font-black tracking-tighter opacity-40 uppercase group-hover/set:opacity-100 transition-opacity text-current">{t.temperature}</label>
+                                                        <span className="text-[10px] font-mono font-bold">{temperature.toFixed(1)}</span>
+                                                    </div>
+                                                    <input
+                                                        type="range" min="0.1" max="1.5" step="0.1" value={temperature}
+                                                        onChange={(e) => setTemperature(parseFloat(e.target.value))}
+                                                        style={{
+                                                            background: `linear-gradient(to right, #a855f7 ${((temperature - 0.1) / (1.5 - 0.1)) * 100}%, ${theme === 'light' ? '#e5e5e5' : '#262626'} ${((temperature - 0.1) / (1.5 - 0.1)) * 100}%)`
+                                                        }}
+                                                        className="w-full h-1 rounded-full appearance-none cursor-pointer transition-all group-hover/set:h-1.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-purple-500"
+                                                    />
+                                                </div>
+
+                                                {/* Exaggeration */}
+                                                <div className="group/set animate-in fade-in slide-in-from-top-2 duration-500 delay-300">
+                                                    <div className="flex justify-between items-center mb-1.5 px-1 text-blue-500">
+                                                        <label className="text-[9px] font-black tracking-tighter opacity-40 uppercase group-hover/set:opacity-100 transition-opacity text-current">{t.exaggeration}</label>
+                                                        <span className="text-[10px] font-mono font-bold">{exaggeration.toFixed(1)}</span>
+                                                    </div>
+                                                    <input
+                                                        type="range" min="0.0" max="2.0" step="0.1" value={exaggeration}
+                                                        onChange={(e) => setExaggeration(parseFloat(e.target.value))}
+                                                        style={{
+                                                            background: `linear-gradient(to right, #3b82f6 ${(exaggeration / 2.0) * 100}%, ${theme === 'light' ? '#e5e5e5' : '#262626'} ${(exaggeration / 2.0) * 100}%)`
+                                                        }}
+                                                        className="w-full h-1 rounded-full appearance-none cursor-pointer transition-all group-hover/set:h-1.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-blue-500"
+                                                    />
+                                                </div>
+
+                                                {/* CFG */}
+                                                <div className="group/set animate-in fade-in slide-in-from-top-2 duration-500 delay-400">
+                                                    <div className="flex justify-between items-center mb-1.5 px-1 text-emerald-500">
+                                                        <label className="text-[9px] font-black tracking-tighter opacity-40 uppercase group-hover/set:opacity-100 transition-opacity text-current">CFG</label>
+                                                        <span className="text-[10px] font-mono font-bold">{cfg.toFixed(1)}</span>
+                                                    </div>
+                                                    <input
+                                                        type="range" min="0.1" max="1.0" step="0.1" value={cfg}
+                                                        onChange={(e) => setCfg(parseFloat(e.target.value))}
+                                                        style={{
+                                                            background: `linear-gradient(to right, #10b981 ${((cfg - 0.1) / (1.0 - 0.1)) * 100}%, ${theme === 'light' ? '#e5e5e5' : '#262626'} ${((cfg - 0.1) / (1.0 - 0.1)) * 100}%)`
+                                                        }}
+                                                        className="w-full h-1 rounded-full appearance-none cursor-pointer transition-all group-hover/set:h-1.5 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-emerald-500"
+                                                    />
+                                                </div>
+
+                                                {/* Ambience Selector - Premium style */}
+                                                <div className="pt-2 animate-in fade-in slide-in-from-top-4 duration-500 delay-500">
+                                                    <label className="text-[9px] font-black tracking-tighter opacity-40 uppercase block mb-2 px-1">Ambience</label>
+                                                    <div className="relative group/sel">
+                                                        <select
+                                                            value={ambienceId}
+                                                            onChange={(e) => setAmbienceId(e.target.value)}
+                                                            className={`w-full p-2.5 pr-8 text-[10px] font-mono rounded-xl border ${borderClass} bg-neutral-500/5 hover:bg-neutral-500/10 outline-none focus:ring-1 focus:ring-emerald-500/50 transition-all appearance-none cursor-pointer`}
+                                                        >
+                                                            {AMBIENCE_OPTIONS.map(opt => (
+                                                                <option key={opt.id} value={opt.id} className={theme === 'dark' ? 'bg-black text-white' : 'bg-white text-black text-xs'}>
+                                                                    {opt.label}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        <div className="absolute right-2 top-1/2 -translate-y-1/2 pointer-events-none opacity-40 group-hover/sel:opacity-100 transition-opacity">
+                                                            <Waves size={10} className={ambienceId ? "text-emerald-500" : ""} />
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="mt-3 animate-in fade-in slide-in-from-top-1">
+                                                        <button
+                                                            onClick={insertAmbienceTag}
+                                                            disabled={!ambienceId}
+                                                            className={`w-full py-3 rounded-xl border flex items-center justify-center gap-2 transition-all shadow-lg group/btn ${!ambienceId
+                                                                ? 'bg-neutral-500/10 border-transparent text-neutral-400 opacity-50 cursor-not-allowed'
+                                                                : ambienceId === 'custom'
+                                                                    ? 'bg-orange-500 border-orange-600 text-white shadow-orange-500/20 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 active:scale-95'
+                                                                    : 'bg-emerald-500 border-emerald-600 text-white shadow-emerald-500/20 hover:shadow-xl hover:-translate-y-0.5 active:translate-y-0 active:scale-95'
+                                                                }`}
+                                                        >
+                                                            <div className={`p-1 rounded-full ${!ambienceId ? 'bg-neutral-500/20' : 'bg-white/20'}`}>
+                                                                <PlusCircle size={10} strokeWidth={3} />
+                                                            </div>
+                                                            <div className="flex flex-col items-start leading-none">
+                                                                <span className="text-[9px] font-black uppercase tracking-widest">INSERTAR TAG</span>
+                                                                {ambienceId && (
+                                                                    <span className="text-[8px] font-mono opacity-80">
+                                                                        {ambienceId === 'custom' ? '[ambience:...]' : `[${ambienceId}]`}
+                                                                    </span>
+                                                                )}
+                                                            </div>
+                                                        </button>
+                                                    </div>
+                                                </div>
+
+                                                {/* Custom Ambience Prompt Trigger & Popup */}
+                                                {ambienceId === 'custom' && (
+                                                    <div className="mt-3">
+                                                        <button
+                                                            onClick={() => setShowPromptPopup(!showPromptPopup)}
+                                                            className={`w-full py-3 px-4 rounded-xl border ${borderClass} bg-neutral-500/10 hover:bg-neutral-500/20 active:scale-95 transition-all flex items-center justify-between group/prompt-btn`}
+                                                        >
+                                                            <div className="flex items-center gap-2 overflow-hidden">
+                                                                <Sparkles size={12} className="text-orange-500 shrink-0" />
+                                                                <span className="text-[10px] font-mono truncate opacity-60 group-hover/prompt-btn:opacity-100 transition-opacity">
+                                                                    {ambiencePrompt ? `"${ambiencePrompt}"` : 'Escribe tu prompt...'}
+                                                                </span>
+                                                            </div>
+                                                            <Edit2 size={10} className="opacity-30 group-hover/prompt-btn:opacity-100" />
+                                                        </button>
+
+                                                        {/* Floating Prompt Popup */}
+                                                        <div className={`absolute bottom-full left-0 right-0 mb-4 mx-[-1rem] p-4 bg-[#1a1a1a] border border-white/10 rounded-[1.5rem] shadow-2xl transition-all duration-300 origin-bottom z-50 ${showPromptPopup ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4 pointer-events-none'}`}>
+                                                            <div className="flex items-center justify-between mb-3">
+                                                                <span className="text-[10px] font-black uppercase text-orange-500 tracking-[0.2em] flex items-center gap-2">
+                                                                    <Sparkles size={10} /> Prompt de Ambiente
+                                                                </span>
+                                                                <button onClick={() => setShowPromptPopup(false)} className="opacity-40 hover:opacity-100 hover:text-white transition-opacity">
+                                                                    <X size={12} />
+                                                                </button>
+                                                            </div>
+                                                            <textarea
+                                                                placeholder="Describe el ambiente... (Ej: lluvia suave sobre techo de metal con truenos lejanos, viento silbando)"
+                                                                value={ambiencePrompt}
+                                                                onChange={(e) => setAmbiencePrompt(e.target.value)}
+                                                                className="w-full min-h-[100px] p-3 text-[11px] leading-relaxed font-mono rounded-xl border border-white/10 bg-black/50 outline-none focus:ring-1 focus:ring-orange-500/50 transition-all placeholder:opacity-20 resize-none mb-3 custom-scrollbar"
+                                                                autoFocus={showPromptPopup}
+                                                            />
+                                                            <button
+                                                                onClick={() => setShowPromptPopup(false)}
+                                                                className="w-full py-2 bg-white text-black text-[10px] font-black uppercase rounded-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
+                                                            >
+                                                                Confirmar
+                                                            </button>
+
+                                                            {/* Arrow pointer */}
+                                                            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-[#1a1a1a] border-r border-b border-white/10 rotate-45"></div>
+                                                        </div>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
                                 </div>
                             )}
 
-                            <textarea
-                                value={textInput}
-                                onChange={(e) => setTextInput(e.target.value)}
-                                className={`w-full h-full resize-none text-2xl leading-relaxed font-light outline-none bg-transparent ${theme === 'light' ? 'placeholder:text-neutral-300' : 'placeholder:text-neutral-700'}`}
-                                placeholder={t.typePlaceholder}
-                                autoFocus
-                            />
 
-                            <div className="absolute bottom-6 right-6 font-mono text-xs opacity-40 select-none pointer-events-none">
+                            {/* Highlighter & Textarea Container */}
+                            <div className="relative w-full h-full group">
+                                {/* Text Highlighter Overlay (Backdrop) */}
+                                <div
+                                    ref={highlighterRef}
+                                    className={`absolute inset-0 whitespace-pre-wrap break-words text-lg leading-relaxed font-light font-sans pointer-events-none overflow-hidden ${selectedVoice && !file ? 'pr-[22rem]' : 'pr-12'}`}
+                                    aria-hidden="true"
+                                >
+                                    {highlightText(textInput)}
+                                </div>
+
+                                {/* Transparent Textarea */}
+                                <textarea
+                                    ref={textareaRef}
+                                    value={textInput}
+                                    onChange={(e) => setTextInput(e.target.value)}
+                                    onScroll={handleScroll}
+                                    className={`w-full h-full resize-none text-lg leading-relaxed font-light outline-none bg-transparent text-transparent caret-neutral-900 dark:caret-white ${selectedVoice && !file ? 'pr-[22rem]' : 'pr-12'}`}
+                                    placeholder=""
+                                    autoFocus
+                                    spellCheck={false}
+                                />
+                            </div>
+
+                            <div className={`absolute bottom-6 font-mono text-xs opacity-40 select-none pointer-events-none transition-all ${selectedVoice && !file ? 'right-[23rem]' : 'right-6'}`}>
                                 {textInput.length} {t.chars}
                             </div>
 
@@ -895,104 +968,332 @@ export default function SynthesisPage() {
                         )}
                     </div>
 
-                    {/* Right Panel: Settings & Voice Select */}
-                    <div className={`w-80 border-l ${borderClass} bg-opacity-20 flex flex-col`}>
+                    {/* Right Panel: Usage Guide & Suggestions */}
+                    <div className={`w-80 border-l ${borderClass} bg-opacity-10 flex flex-col hidden xl:flex`}>
                         <div className={`h-16 border-b ${borderClass} flex items-center px-6`}>
-                            <span className="font-mono text-xs font-bold tracking-wider">{t.voicesTitle}</span>
+                            <span className="font-mono text-xs font-bold tracking-wider">GUÍA RÁPIDA</span>
                         </div>
 
-                        <div className="flex-1 overflow-y-auto p-6 space-y-6">
-
-                            {/* File Upload Option */}
-                            <div>
-                                <label className="text-[10px] font-mono uppercase opacity-40 mb-2 block">{t.uploadRef}</label>
-                                <div
-                                    onClick={() => fileInputRef.current?.click()}
-                                    className={`p-4 border ${borderClass} border-dashed rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-neutral-500/5 transition-all group ${file ? 'border-emerald-500 bg-emerald-500/5' : ''}`}
-                                >
-                                    {file ? (
-                                        <>
-                                            <div className="w-10 h-10 rounded-full bg-emerald-500 text-white flex items-center justify-center shadow-md">
-                                                <Volume2 size={20} />
-                                            </div>
-                                            <span className="text-xs font-bold text-emerald-600 truncate max-w-full px-2">{file.name}</span>
-                                            <button
-                                                onClick={clearFile}
-                                                className="mt-2 text-[10px] uppercase font-bold text-red-500 hover:underline"
-                                            >
-                                                {t.removeFile}
-                                            </button>
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Upload size={20} className="opacity-40 group-hover:scale-110 transition-transform" />
-                                            <span className="text-xs font-mono opacity-60 text-center">Click to upload .WAV</span>
-                                        </>
-                                    )}
-                                    <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".wav" className="hidden" />
+                        <div className="flex-1 overflow-y-auto p-8 space-y-10 flex flex-col min-h-0">
+                            <div className="space-y-4">
+                                <div className="text-[10px] font-mono font-black uppercase text-emerald-500 tracking-[0.2em] flex items-center gap-2">
+                                    <Info size={12} /> 01. Emociones
                                 </div>
+                                <p className="text-[11px] leading-relaxed opacity-60 font-medium italic">
+                                    "Prueba usar tags como [laugh], [sigh] o [whisper] para que la IA actúe de forma más humana."
+                                </p>
                             </div>
 
-                            {/* Voice List */}
-                            <div>
-                                <label className="text-[10px] font-mono uppercase opacity-40 mb-2 block">{t.selectVoice}</label>
-                                <div className="space-y-2">
-                                    {availableVoices.length === 0 && (
-                                        <div className="text-xs opacity-40 italic p-2">Loading voices...</div>
-                                    )}
-
-                                    {availableVoices.map((voice) => (
-                                        <button
-                                            key={voice.name}
-                                            onClick={() => {
-                                                setSelectedVoice(voice);
-                                                setFile(null);
-
-                                                // Auto-select mode and language from voice metadata
-                                                if (voice.model === 'chatterbox-multilingual') {
-                                                    setSelectedMode('multilingual');
-                                                    if (voice.language && voice.language !== '?' && voice.language !== 'unknown') {
-                                                        setLanguageId(voice.language);
-                                                    }
-                                                } else if (voice.model === 'chatterbox-turbo' || voice.model === 'chatterbox-original') {
-                                                    setSelectedMode('turbo');
-                                                }
-                                            }}
-                                            className={`w-full p-4 rounded-xl border text-left flex items-start gap-3 transition-all duration-300 relative overflow-hidden group/voice ${selectedVoice?.name === voice.name && !file
-                                                ? (theme === 'light' ? 'bg-white border-black shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] scale-[1.02] z-10' : 'bg-[#1a1a1a] border-white shadow-[8px_8px_0px_0px_rgba(255,255,255,1)] scale-[1.02] z-10')
-                                                : `${borderClass} hover:bg-neutral-500/5 hover:border-neutral-400 opacity-60 hover:opacity-100`
-                                                }`}
-                                        >
-                                            <div className={`w-10 h-10 shrink-0 rounded-full flex items-center justify-center font-bold text-sm transition-transform duration-500 group-hover/voice:rotate-12 ${selectedVoice?.name === voice.name && !file
-                                                ? (theme === 'light' ? 'bg-black text-white' : 'bg-white text-black')
-                                                : 'bg-neutral-500/10'
-                                                }`}>
-                                                {voice.name.charAt(0).toUpperCase()}
-                                            </div>
-                                            <div className="min-w-0 flex-1">
-                                                <div className="font-black text-sm truncate flex items-center gap-2 tracking-tight">
-                                                    {voice.name}
-                                                    {voice.region && voice.region !== '?' && <span className={`text-[8px] px-1 rounded-sm border font-mono opacity-60 ${selectedVoice?.name === voice.name ? 'border-current' : 'border-neutral-500'}`}>{voice.region}</span>}
-                                                </div>
-                                                <div className="text-[10px] opacity-40 font-mono truncate uppercase mt-0.5">
-                                                    {(!voice.language || voice.language === '?') ? 'STANDARD' : `${voice.language?.toUpperCase()} • ${voice.gender?.toUpperCase()}`}
-                                                </div>
-                                            </div>
-                                            {selectedVoice?.name === voice.name && !file && (
-                                                <div className="ml-auto flex flex-col items-end gap-1">
-                                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping"></div>
-                                                    <Waves size={10} className="opacity-20 translate-y-2 group-hover/voice:translate-y-0 transition-transform" />
-                                                </div>
-                                            )}
-                                        </button>
-                                    ))}
-                                </div>
+                            <div className="space-y-4">
+                                <div className="text-[10px] font-mono font-black uppercase text-purple-500 tracking-[0.2em]">02. Puntuación</div>
+                                <p className="text-[11px] leading-relaxed opacity-60 font-medium italic">
+                                    "El uso excesivo de elipsis (...) genera pausas más naturales y dubitativas en el modelo Turbo."
+                                </p>
                             </div>
 
+                            <div className="space-y-4">
+                                <div className="text-[10px] font-mono font-black uppercase text-blue-500 tracking-[0.2em]">03. Clonación</div>
+                                <p className="text-[11px] leading-relaxed opacity-60 font-medium italic">
+                                    "Para mejores resultados al clonar, asegúrate de que el audio no tenga música de fondo ni ruidos."
+                                </p>
+                            </div>
+
+                            <div className="space-y-6 cursor-help group/params" onClick={() => setShowAdvanced(!showAdvanced)}>
+                                <div className="text-[10px] font-mono font-black uppercase text-orange-500 tracking-[0.2em] flex items-center gap-2 group-hover/params:translate-x-1 transition-transform">
+                                    <Settings size={12} className={showAdvanced ? 'animate-spin-slow' : ''} /> 04. Parámetros
+                                </div>
+                                {!showAdvanced ? (
+                                    <p className="text-[11px] leading-relaxed opacity-60 font-medium italic animate-in fade-in duration-500">
+                                        "Configura los matices técnicos de la generación neuronal para ajustar la expresividad y precisión."
+                                    </p>
+                                ) : (
+                                    <div className="space-y-4 opacity-70 animate-in slide-in-from-top-4 fade-in duration-500">
+                                        <div className="space-y-1">
+                                            <div className="text-[9px] font-black uppercase tracking-widest text-purple-400">Temperatura</div>
+                                            <p className="text-[10px] leading-relaxed italic">Define la aleatoriedad. +1.0 para mayor expresividad y locura; -1.0 para estabilidad quirúrgica.</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <div className="text-[9px] font-black uppercase tracking-widest text-blue-400">Exageración</div>
+                                            <p className="text-[10px] leading-relaxed italic">Intensifica los rasgos únicos y la entonación de la identidad seleccionada.</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <div className="text-[9px] font-black uppercase tracking-widest text-emerald-400">CFG Scale</div>
+                                            <p className="text-[10px] leading-relaxed italic">Fuerza a la IA a seguir el texto rigurosamente. Útil para tecnicismos o lecturas precisas.</p>
+                                        </div>
+                                        <div className="space-y-1">
+                                            <div className="text-[9px] font-black uppercase tracking-widest opacity-60">Ambience</div>
+                                            <p className="text-[10px] leading-relaxed italic">Inyecta ruido de fondo atmosférico para situar la voz en un entorno real.</p>
+                                        </div>
+                                    </div>
+                                )}
+                            </div>
+
+                            <div className="space-y-4 animate-in fade-in duration-700 delay-300">
+                                <div className="text-[10px] font-mono font-black uppercase text-emerald-500 tracking-[0.2em] flex items-center gap-2">
+                                    <Waves size={12} /> 05. Ambientes Dinámicos
+                                </div>
+                                <p className="text-[11px] leading-relaxed opacity-60 font-medium italic">
+                                    "Controla el entorno y su duración en tiempo real: <span className="text-emerald-500/80">[rain:10s]</span> Lluvia por 10s... <span className="text-orange-500/80">[ambience:truenos:2s]</span> ¡Boom!"
+                                </p>
+                            </div>
+
+                            <div className="pt-8 mt-auto">
+                                <div className={`p-6 rounded-[2rem] border border-dashed ${borderClass} bg-neutral-500/5`}>
+                                    <div className="text-[10px] font-mono uppercase font-black mb-3 flex items-center gap-2 opacity-40">
+                                        <Sparkles size={12} /> PRO TIP
+                                    </div>
+                                    <p className="text-[10px] leading-relaxed opacity-40">
+                                        Hacer clic en la foto de la tarjeta circular te permite cambiar de voz sin perder tu progreso.
+                                    </p>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Premium Voice Library Modal */}
+            {
+                showVoiceModal && (
+                    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 md:p-12">
+                        {/* Backdrop */}
+                        <div
+                            className="absolute inset-0 bg-black/60 backdrop-blur-md animate-in fade-in duration-500"
+                            onClick={() => setShowVoiceModal(false)}
+                        />
+
+                        {/* Modal Content */}
+                        <div className={`relative w-full max-w-6xl h-full max-h-[90vh] rounded-[3.5rem] border ${borderClass} ${theme === 'light' ? 'bg-white/95' : 'bg-[#050505]/90'} backdrop-blur-3xl shadow-[0_32px_128px_rgba(0,0,0,0.5)] overflow-hidden flex flex-col animate-in zoom-in-95 fade-in duration-500`}>
+                            {/* Modal Header */}
+                            <div className={`p-10 border-b ${borderClass} flex flex-col lg:flex-row lg:items-center justify-between gap-8 relative overflow-hidden`}>
+                                {/* Decorative background for header */}
+                                <div className="absolute top-0 right-0 w-96 h-96 bg-emerald-500/10 blur-[120px] rounded-full -mr-48 -mt-48 transition-all duration-1000 group-hover:bg-purple-500/10" />
+
+                                <div className="space-y-2 relative z-10">
+                                    <h2 className="text-4xl font-black tracking-tighter uppercase flex items-center gap-3">
+                                        {t.voicesTitle}
+                                        <div className="px-2 py-0.5 rounded bg-emerald-500 text-[10px] text-white font-mono vertical-middle">LIVE</div>
+                                    </h2>
+                                    <p className="text-xs font-mono opacity-40 uppercase tracking-widest max-w-md">Explora y selecciona tu próxima identidad neuronal de nuestra base de datos global.</p>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-4 relative z-10">
+                                    {/* Search */}
+                                    <div className="relative group w-full lg:w-72">
+                                        <Search className="absolute left-4 top-1/2 -translate-y-1/2 opacity-30 group-focus-within:opacity-100 group-focus-within:text-emerald-500 transition-all" size={18} />
+                                        <input
+                                            type="text"
+                                            placeholder="Buscar voz o región..."
+                                            value={searchQuery}
+                                            onChange={(e) => setSearchQuery(e.target.value)}
+                                            className={`w-full pl-12 pr-4 py-4 rounded-2xl border ${borderClass} bg-neutral-500/5 outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500/50 transition-all font-mono text-sm uppercase tracking-tight`}
+                                        />
+                                    </div>
+
+                                    {/* Filters */}
+                                    <div className="flex items-center gap-3">
+                                        <div className="relative group">
+                                            <select
+                                                value={filterGender}
+                                                onChange={(e) => setFilterGender(e.target.value)}
+                                                className={`pl-10 pr-10 py-4 rounded-2xl border ${borderClass} bg-neutral-500/5 outline-none font-mono text-[10px] font-bold cursor-pointer hover:bg-neutral-500/10 transition-all appearance-none uppercase tracking-widest`}
+                                            >
+                                                <option value="all">TODOS LOS SEXOS</option>
+                                                <option value="male">MASCULINO</option>
+                                                <option value="female">FEMENINO</option>
+                                            </select>
+                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-40 pointer-events-none group-hover:scale-110 transition-transform">
+                                                <Filter size={14} />
+                                            </div>
+                                        </div>
+
+                                        <div className="relative group">
+                                            <select
+                                                value={filterLanguage}
+                                                onChange={(e) => setFilterLanguage(e.target.value)}
+                                                className={`pl-10 pr-10 py-4 rounded-2xl border ${borderClass} bg-neutral-500/5 outline-none font-mono text-[10px] font-bold cursor-pointer hover:bg-neutral-500/10 transition-all appearance-none uppercase tracking-widest`}
+                                            >
+                                                <option value="all">TODOS LOS IDIOMAS</option>
+                                                {Array.from(new Set(availableVoices.map(v => v.language || v.region))).filter(Boolean).map(lang => (
+                                                    <option key={lang} value={lang}>{lang?.toUpperCase()}</option>
+                                                ))}
+                                            </select>
+                                            <div className="absolute left-4 top-1/2 -translate-y-1/2 opacity-40 pointer-events-none group-hover:scale-110 transition-transform">
+                                                <Globe size={14} />
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button
+                                        onClick={() => setShowVoiceModal(false)}
+                                        className="p-4 rounded-full border border-neutral-500/20 hover:bg-red-500 hover:text-white hover:border-red-500 transition-all duration-300 shadow-lg hover:rotate-90"
+                                    >
+                                        <X size={24} />
+                                    </button>
+                                </div>
+                            </div>
+
+                            {/* Modal Body - Cloning & Voice Grid */}
+                            <div className="flex-1 overflow-y-auto p-10 custom-scrollbar bg-neutral-500/5">
+                                <div className="max-w-7xl mx-auto space-y-12">
+                                    {/* Cloning Section */}
+                                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                                        <div className="lg:col-span-1 space-y-6 text-left">
+                                            <div className="space-y-4">
+                                                <h3 className="text-xl font-black tracking-tighter uppercase flex items-center gap-2">
+                                                    <Mic size={20} className="text-emerald-500" />
+                                                    Clonar Voz (Subir Audio)
+                                                </h3>
+                                                <p className="text-xs opacity-50 font-medium leading-relaxed">Sube una referencia de voz de alta calidad (mínimo 10 seg) para clonar tu propia identidad neuronal en tiempo real.</p>
+                                            </div>
+
+                                            <div
+                                                onClick={() => fileInputRef.current?.click()}
+                                                className={`p-10 border ${borderClass} border-dashed rounded-[2.5rem] flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-emerald-500/5 hover:border-emerald-500/50 transition-all group relative overflow-hidden ${file ? 'bg-emerald-500/10 border-emerald-500 shadow-2xl' : 'bg-neutral-500/5'}`}
+                                            >
+                                                {file ? (
+                                                    <div className="text-center space-y-4">
+                                                        <div className="w-16 h-16 rounded-full bg-emerald-500 text-white flex items-center justify-center mx-auto shadow-xl ring-4 ring-emerald-500/20">
+                                                            <Volume2 size={32} />
+                                                        </div>
+                                                        <div className="space-y-1">
+                                                            <div className="text-sm font-black text-emerald-600 truncate max-w-[200px]">{file.name}</div>
+                                                            <div className="text-[10px] uppercase font-bold opacity-40">Archivo Detectado</div>
+                                                        </div>
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); setShowVoiceModal(false); }}
+                                                            className="px-6 py-2 bg-emerald-500 text-white text-[10px] font-black uppercase rounded-full hover:scale-105 active:scale-95 transition-all shadow-lg"
+                                                        >
+                                                            Usar esta voz
+                                                        </button>
+                                                        <button onClick={clearFile} className="block w-full text-[9px] font-black text-red-500/50 hover:text-red-500 uppercase">Eliminar</button>
+                                                    </div>
+                                                ) : (
+                                                    <>
+                                                        <Upload size={32} className="opacity-20 group-hover:opacity-100 group-hover:scale-110 group-hover:text-emerald-500 transition-all duration-500" />
+                                                        <span className="text-xs font-black opacity-30 group-hover:opacity-100 transition-opacity tracking-widest">ARRASTRA TU VOZ (.WAV)</span>
+                                                    </>
+                                                )}
+                                                <input type="file" ref={fileInputRef} onChange={handleFileChange} accept=".wav" className="hidden" />
+                                            </div>
+                                        </div>
+
+                                        <div className="lg:col-span-1 h-full flex flex-col text-left">
+                                            <div className={`flex-1 p-8 rounded-[2.5rem] border border-dashed ${borderClass} opacity-40 flex flex-col justify-center items-start gap-4 hover:opacity-100 transition-opacity`}>
+                                                <div className="flex items-center gap-2 text-emerald-500">
+                                                    <Sparkles size={16} />
+                                                    <span className="text-[10px] font-black uppercase tracking-widest">Pro Tip</span>
+                                                </div>
+                                                <p className="text-xs font-medium leading-relaxed italic">
+                                                    "Selecciona una voz de la biblioteca haciendo clic en la foto circular para obtener los mejores resultados neuronales."
+                                                </p>
+                                            </div>
+                                        </div>
+
+                                        <div className="lg:col-span-1 h-full flex flex-col justify-center gap-4 text-[11px] font-mono opacity-30 select-none">
+                                            <div className="flex justify-between border-b border-neutral-500/10 pb-3"><span>FORMATO</span> <span>WAV / MP3</span></div>
+                                            <div className="flex justify-between border-b border-neutral-500/10 pb-3"><span>DURACIÓN</span> <span>+10 SEG SUGERIDO</span></div>
+                                            <div className="flex justify-between border-b border-neutral-500/10 pb-3"><span>CALIDAD</span> <span>44.1 KHZ / 16-BIT</span></div>
+                                        </div>
+                                    </div>
+
+                                    <div className={`h-[1px] w-full ${borderClass} opacity-20`} />
+
+                                    {/* Voices Grid Section */}
+                                    <div className="space-y-8 text-left">
+                                        <div className="flex items-center justify-between">
+                                            <h3 className="text-xl font-black tracking-tighter uppercase flex items-center gap-2">
+                                                <Users size={20} className="text-purple-500" />
+                                                Voces Predefinidas
+                                            </h3>
+                                            <div className="text-[10px] font-mono opacity-40 uppercase">{availableVoices.length} Identidades Disponibles</div>
+                                        </div>
+
+                                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+                                            {availableVoices
+                                                .filter(v => {
+                                                    const matchesSearch = v.name.toLowerCase().includes(searchQuery.toLowerCase()) || (v.language && v.language.toLowerCase().includes(searchQuery.toLowerCase()));
+                                                    const matchesGender = filterGender === "all" || v.gender?.toLowerCase() === filterGender;
+                                                    const matchesLang = filterLanguage === "all" || (v.language || v.region) === filterLanguage;
+                                                    return matchesSearch && matchesGender && matchesLang;
+                                                })
+                                                .map((voice) => (
+                                                    <button
+                                                        key={voice.name}
+                                                        onClick={() => {
+                                                            setSelectedVoice(voice);
+                                                            setFile(null);
+                                                            setShowVoiceModal(false);
+                                                            if (voice.model === 'chatterbox-multilingual') {
+                                                                setSelectedMode('multilingual');
+                                                                if (voice.language && voice.language !== '?' && voice.language !== 'unknown') {
+                                                                    setLanguageId(voice.language);
+                                                                }
+                                                            } else {
+                                                                setSelectedMode('turbo');
+                                                            }
+                                                        }}
+                                                        className={`p-8 rounded-[2.5rem] border text-left flex flex-col gap-6 transition-all duration-500 relative overflow-hidden group/vcard scale-up-center ${selectedVoice?.name === voice.name && !file
+                                                            ? (theme === 'light' ? 'bg-white border-black shadow-2xl ring-4 ring-emerald-500/20 ring-offset-4 ring-offset-white' : 'bg-black border-white shadow-[0_0_40px_rgba(255,255,255,0.1)] ring-4 ring-emerald-500/20 ring-offset-4 ring-offset-black')
+                                                            : `${borderClass} bg-neutral-500/5 hover:bg-emerald-500 hover:border-emerald-500 hover:-translate-y-2 hover:shadow-[0_20px_40px_-10px_rgba(16,185,129,0.3)]`
+                                                            }`}
+                                                    >
+                                                        <div className="flex items-center gap-4">
+                                                            <div className={`w-16 h-16 shrink-0 rounded-full flex items-center justify-center font-black text-2xl transition-all duration-500 group-hover/vcard:scale-110 group-hover/vcard:rotate-6 ${selectedVoice?.name === voice.name && !file
+                                                                ? (theme === 'light' ? 'bg-black text-white' : 'bg-white text-black')
+                                                                : 'bg-neutral-500/10 group-hover/vcard:bg-white group-hover/vcard:text-emerald-500'
+                                                                }`}>
+                                                                {voice.name.charAt(0).toUpperCase()}
+                                                            </div>
+
+                                                            <div className="min-w-0 flex-1">
+                                                                <div className={`font-black text-lg truncate flex items-center gap-2 tracking-tighter transition-colors ${selectedVoice?.name !== voice.name ? 'group-hover/vcard:text-white' : ''}`}>
+                                                                    {voice.name}
+                                                                    {selectedVoice?.name === voice.name && (
+                                                                        <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-ping" />
+                                                                    )}
+                                                                </div>
+                                                                <div className={`text-[11px] font-mono uppercase mt-1 flex flex-wrap items-center gap-x-2 transition-opacity ${selectedVoice?.name !== voice.name ? 'opacity-40 group-hover/vcard:opacity-80 group-hover/vcard:text-white' : 'opacity-60'}`}>
+                                                                    <span>{voice.gender || 'UNK'}</span>
+                                                                    <span className="opacity-30">•</span>
+                                                                    <span>{voice.language || 'STD'}</span>
+                                                                    {voice.region && (
+                                                                        <>
+                                                                            <span className="opacity-30">•</span>
+                                                                            <span className="flex items-center gap-1">
+                                                                                <Globe size={10} />
+                                                                                {voice.region}
+                                                                            </span>
+                                                                        </>
+                                                                    )}
+                                                                </div>
+                                                            </div>
+                                                        </div>
+
+                                                        <div className={`pt-4 border-t ${selectedVoice?.name === voice.name ? 'border-emerald-500/20' : 'border-neutral-500/10 group-hover/vcard:border-white/20'} flex justify-between items-center transition-all`}>
+                                                            <span className={`text-[9px] font-mono uppercase tracking-widest ${selectedVoice?.name !== voice.name ? 'opacity-30 group-hover/vcard:opacity-100 group-hover/vcard:text-white' : 'opacity-60'}`}>
+                                                                {voice.model?.split('-')[1]?.toUpperCase() || 'NEURAL'}
+                                                            </span>
+                                                            {selectedVoice?.name === voice.name && <Waves size={14} className="text-emerald-500 animate-pulse" />}
+                                                            {selectedVoice?.name !== voice.name && <ArrowRight size={14} className="opacity-0 group-hover/vcard:opacity-100 group-hover/vcard:text-white group-hover/vcard:translate-x-1 transition-all" />}
+                                                        </div>
+
+                                                        {/* Selection Pill */}
+                                                        {selectedVoice?.name === voice.name && !file && (
+                                                            <div className="absolute top-0 right-0 px-5 py-2 rounded-bl-[2rem] bg-emerald-500 text-white text-[9px] font-black uppercase tracking-widest shadow-lg">
+                                                                SELECTED
+                                                            </div>
+                                                        )}
+                                                    </button>
+                                                ))}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                )
+            }
         </div >
     );
 }
