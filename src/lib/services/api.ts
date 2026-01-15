@@ -7,6 +7,8 @@ const api = axios.create({
     headers: {
         'Content-Type': 'application/json',
     },
+    // Allow any status code to be handled in the route handler without throwing an exception
+    validateStatus: () => true,
 });
 
 api.interceptors.request.use(async (config) => {

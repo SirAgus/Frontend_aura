@@ -1,10 +1,12 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Moon, Sun, Waves, Globe, LogOut, Mic, Users, Clock, Settings, ShieldCheck, Database, Key } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import DashboardSidebar from '../../../components/DashboardSidebar';
+import { userService, voiceService } from '@/lib/services/resources';
+import { User } from '@/types';
 
 const translations = {
     es: {
@@ -43,10 +45,42 @@ export default function SettingsPage() {
     const router = useRouter(); // Use router
     const [theme, setTheme] = useState('light');
     const [lang, setLang] = useState<'es' | 'en'>('es');
+    const [user, setUser] = useState<User | null>(null);
+    const [voices, setVoices] = useState<any[]>([]);
+    const [updating, setUpdating] = useState(false);
     const t = translations[lang];
 
+    useEffect(() => {
+        const fetchData = async () => {
+            try {
+                const [userData, voicesData] = await Promise.all([
+                    userService.getMe(),
+                    voiceService.getAll()
+                ]);
+                setUser(userData);
+                setVoices(voicesData || []);
+            } catch (error) {
+                console.error("Error fetching settings data", error);
+            }
+        };
+        fetchData();
+    }, []);
+
+    const handleUpdateVoice = async (voiceId: string) => {
+        setUpdating(true);
+        try {
+            await userService.updateSettings({ default_voice_id: voiceId });
+            setUser(prev => prev ? { ...prev, default_voice_id: voiceId } : null);
+        } catch (error) {
+            console.error("Error updating voice", error);
+        } finally {
+            setUpdating(false);
+        }
+    };
+
     const handleLogout = () => {
-        localStorage.removeItem('voice_auth');
+        localStorage.removeItem('voice_token');
+        localStorage.removeItem('voice_user_id');
         router.push('/');
     };
 
@@ -111,19 +145,56 @@ export default function SettingsPage() {
                                         <ShieldCheck size={24} />
                                     </div>
                                     <div>
-                                        <h3 className="font-bold">Cuenta</h3>
-                                        <div className="text-xs font-mono opacity-60 uppercase">ADMIN</div>
+                                        <h3 className="font-bold">{t.account}</h3>
+                                        <div className="text-xs font-mono opacity-60 uppercase">{user?.role || '...'}</div>
                                     </div>
                                 </div>
-                                <div className="space-y-2 font-mono text-xs opacity-60">
-                                    <div className="flex justify-between">
+                                <div className="space-y-4 font-mono text-xs opacity-60">
+                                    <div className="flex justify-between border-b pb-2 border-inherit">
                                         <span>User:</span>
-                                        <span>admin</span>
+                                        <span className="font-bold">{user?.username || '...'}</span>
                                     </div>
-                                    <div className="flex justify-between">
+                                    <div className="flex justify-between border-b pb-2 border-inherit">
+                                        <span>Email:</span>
+                                        <span className="font-bold">{user?.email || '...'}</span>
+                                    </div>
+                                    <div className="flex justify-between border-b pb-2 border-inherit">
                                         <span>Role:</span>
-                                        <span>Superuser</span>
+                                        <span className="font-bold">{user?.role || '...'}</span>
                                     </div>
+                                </div>
+                            </div>
+
+                            {/* Voice Preferences Card */}
+                            <div className={`p-8 border ${borderClass} rounded-xl ${theme === 'light' ? 'bg-white' : 'bg-[#111]'}`}>
+                                <div className="flex items-center gap-4 mb-6">
+                                    <div className={`w-12 h-12 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500`}>
+                                        <Mic size={24} />
+                                    </div>
+                                    <div>
+                                        <h3 className="font-bold">Preferencias de Voz</h3>
+                                        <div className="text-xs font-mono opacity-60 uppercase">Personalización</div>
+                                    </div>
+                                </div>
+                                <div className="space-y-4">
+                                    <div className="space-y-2">
+                                        <label className="text-[10px] font-black uppercase tracking-widest opacity-40">Voz Predeterminada</label>
+                                        <select
+                                            value={user?.default_voice_id || ''}
+                                            disabled={updating}
+                                            onChange={(e) => handleUpdateVoice(e.target.value)}
+                                            className={`w-full p-3 rounded-xl border text-sm outline-none transition-all ${theme === 'light' ? 'bg-[#f9f9f9] border-neutral-200 focus:border-black' : 'bg-black border-neutral-800 focus:border-white'} ${updating ? 'opacity-50' : ''}`}
+                                        >
+                                            <option value="">Selecciona una voz...</option>
+                                            {voices.map(v => (
+                                                <option key={v.name} value={v.name}>{v.name} ({v.language})</option>
+                                            ))}
+                                        </select>
+                                        {updating && <span className="text-[10px] font-mono text-emerald-500 animate-pulse">Guardando...</span>}
+                                    </div>
+                                    <p className="text-[10px] opacity-40 leading-relaxed uppercase tracking-tighter">
+                                        Esta voz se utilizará automáticamente en las nuevas sesiones de síntesis.
+                                    </p>
                                 </div>
                             </div>
                         </div>

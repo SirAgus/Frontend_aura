@@ -12,6 +12,9 @@ export interface AuthResponse {
 export interface User {
     id: number;
     username: string;
+    email: string;
+    role: string;
+    default_voice_id?: string;
     created_at: string;
 }
 

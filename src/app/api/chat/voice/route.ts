@@ -9,11 +9,10 @@ const POST = async (req: NextRequest) => {
         const token = cookieStore.get('accessToken')?.value;
 
         // Use fetch directly to handle streaming response from backend
-        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chat`, {
+        const response = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/chat/voice`, {
             method: 'POST',
             headers: {
                 'Authorization': `Bearer ${token}`,
-                // No need to set Content-Type for FormData, fetch does it with boundary
             },
             body: formData,
         });
@@ -33,8 +32,8 @@ const POST = async (req: NextRequest) => {
         });
 
     } catch (e: any) {
-        console.error("BFF Chat Error:", e);
-        return new Response(JSON.stringify({ error: "Chat failed" }), {
+        console.error("BFF Voice Chat Error:", e);
+        return new Response(JSON.stringify({ error: "Voice chat failed" }), {
             status: 500,
             headers: { 'Content-Type': 'application/json' }
         });

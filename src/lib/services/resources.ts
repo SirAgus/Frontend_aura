@@ -6,6 +6,10 @@ import { User, Voice, Thread, Message, ChatResponse, TTSPayload, ChatPayload, Vo
 export const userService = {
     getMe: async (): Promise<User> => {
         const res = await axios.get("/api/users/me");
+        return res.data.user;
+    },
+    updateSettings: async (settings: { default_voice_id: string }): Promise<any> => {
+        const res = await axios.patch("/api/users/me/settings", settings);
         return res.data;
     }
 };
@@ -57,6 +61,10 @@ export const chatService = {
     },
     createThread: async (formData: FormData): Promise<Thread> => {
         const res = await axios.post("/api/threads", formData);
+        return res.data;
+    },
+    updateThread: async (id: number, title: string) => {
+        const res = await axios.patch(`/api/threads/${id}`, { title });
         return res.data;
     },
     deleteThread: async (id: number) => {

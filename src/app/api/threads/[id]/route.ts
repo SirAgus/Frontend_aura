@@ -6,15 +6,33 @@ const DELETE = async (req: NextRequest, { params }: { params: Promise<{ id: stri
     try {
         const { id } = await params;
         const res = await api.delete(`/threads/${id}`);
-        if (res.status === 200 || res.status === 201) {
+        if (res.status < 500) {
             return NextResponse.json(res.data, { status: res.status });
         } else {
-            return NextResponse.json({ error: res.data }, { status: res.status });
+            return NextResponse.json({ error: res.data }, { status: 502 });
         }
     } catch (e: any) {
-        if (e.response) return NextResponse.json({ error: e.response.data }, { status: e.response.status });
+        console.error("BFF Delete Thread Error:", e);
         return NextResponse.json({ error: "Delete thread failed" }, { status: 500 });
     }
 };
 
-export { DELETE };
+const PATCH = async (req: NextRequest, { params }: { params: Promise<{ id: string }> }) => {
+    try {
+        const { id } = await params;
+        const body = await req.json(); // Expected { title: "new title" }
+
+        const res = await api.patch(`/threads/${id}`, body);
+
+        if (res.status < 500) {
+            return NextResponse.json(res.data, { status: res.status });
+        } else {
+            return NextResponse.json({ error: res.data }, { status: 502 });
+        }
+    } catch (e: any) {
+        console.error("BFF Update Thread Error:", e);
+        return NextResponse.json({ error: "Update thread failed" }, { status: 500 });
+    }
+};
+
+export { DELETE, PATCH };

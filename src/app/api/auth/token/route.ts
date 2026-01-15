@@ -18,31 +18,33 @@ const POST = async (request: NextRequest) => {
         });
 
         if (res.status === 200 || res.status === 201) {
-            const { access, refresh, access_token, refresh_token, user_id } = res.data;
+            const { access, refresh, access_token, refresh_token } = res.data;
 
-            const response = NextResponse.json({
-                message: "Success",
-                user_id: user_id
-            }, { status: 200 });
+            // Return full data to frontend as requested by user / API reference
+            const response = NextResponse.json(res.data, { status: 200 });
 
             response.headers.append('Access-Control-Allow-Credentials', 'true');
 
-            // Support both naming conventions from docs/reference
+            // Support both naming conventions from docs/reference for the cookies
             const finalAccess = access || access_token;
             const finalRefresh = refresh || refresh_token;
 
-            response.cookies.set('accessToken', finalAccess, {
-                httpOnly: true,
-                path: '/',
-                sameSite: 'lax',
-                secure: true
-            });
-            response.cookies.set('refreshToken', finalRefresh, {
-                httpOnly: true,
-                path: '/',
-                sameSite: 'lax',
-                secure: true
-            });
+            if (finalAccess) {
+                response.cookies.set('accessToken', finalAccess, {
+                    httpOnly: true,
+                    path: '/',
+                    sameSite: 'lax',
+                    secure: true
+                });
+            }
+            if (finalRefresh) {
+                response.cookies.set('refreshToken', finalRefresh, {
+                    httpOnly: true,
+                    path: '/',
+                    sameSite: 'lax',
+                    secure: true
+                });
+            }
 
             return response;
         }

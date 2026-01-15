@@ -17,11 +17,10 @@ const POST = async (request: NextRequest) => {
             headers: { 'Content-Type': contentType }
         });
 
-        if (res.status === 200 || res.status === 201) {
+        // Any status code returned by the backend (2xx, 4xx, etc) is handled here thanks to validateStatus
+        if (res.status < 500) {
             return NextResponse.json(res.data, { status: res.status });
-        } else {
-            return NextResponse.json({ error: res.data }, { status: res.status });
-        }
+        } else return NextResponse.json({ error: res.data }, { status: 502 });
 
     } catch (e: any) {
         console.error("BFF Signup Error:", e);
