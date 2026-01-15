@@ -127,6 +127,7 @@ export default function LandingPage() {
 
   // Auth State
   const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [loginError, setLoginError] = useState('');
 
@@ -283,7 +284,7 @@ export default function LandingPage() {
     try {
       let data;
       if (authMode === 'signup') {
-        data = await authService.signup(username, password);
+        data = await authService.signup(username, email, password);
       } else {
         data = await authService.login(username, password);
       }
@@ -503,6 +504,8 @@ export default function LandingPage() {
                   <User className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${textSubtle}`} />
                   <input
                     type="text"
+                    value={username}
+                    onChange={e => setUsername(e.target.value)}
                     placeholder={t.fullName}
                     className={`w-full p-4 pl-12 text-sm outline-none transition-colors border ${inputClasses}`}
                   />
@@ -512,9 +515,9 @@ export default function LandingPage() {
               <div className="relative group">
                 <Mail className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${textSubtle}`} />
                 <input
-                  type="text" // Assuming username based login for now
-                  value={username}
-                  onChange={e => setUsername(e.target.value)}
+                  type="text"
+                  value={authMode === 'signin' ? username : email}
+                  onChange={e => authMode === 'signin' ? setUsername(e.target.value) : setEmail(e.target.value)}
                   placeholder={authMode === 'signin' ? "Usuario" : t.email}
                   className={`w-full p-4 pl-12 text-sm outline-none transition-colors border ${inputClasses}`}
                 />

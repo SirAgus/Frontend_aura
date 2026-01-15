@@ -11,8 +11,9 @@ const api = axios.create({
 
 api.interceptors.request.use(async (config) => {
     // server-side only: read cookies
+    // Using 'accessToken' to match the standard in route handlers
     const cookieStore = await cookies();
-    const token = cookieStore.get('voice_token')?.value;
+    const token = cookieStore.get('accessToken')?.value;
 
     if (token) {
         config.headers.Authorization = `Bearer ${token}`;
