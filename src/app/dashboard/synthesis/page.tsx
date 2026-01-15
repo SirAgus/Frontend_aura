@@ -172,8 +172,6 @@ export default function SynthesisPage() {
     const [repetitionPenalty, setRepetitionPenalty] = useState(2.0);
     const [topP, setTopP] = useState(1.0);
     const [ambienceId, setAmbienceId] = useState('');
-    const [ambiencePrompt, setAmbiencePrompt] = useState('');
-    const [showPromptPopup, setShowPromptPopup] = useState(false);
     const [showAdvanced, setShowAdvanced] = useState(false);
 
     // Style / Emotion System
@@ -318,17 +316,13 @@ export default function SynthesisPage() {
 
     const AMBIENCE_OPTIONS = [
         { id: '', label: 'None (Sin ambiente)' },
-        { id: 'ags', label: 'AGS Ambiente (Auto)' },
-        { id: 'custom', label: 'Custom (Prompt personalizado)' },
         { id: 'rain', label: 'Rain (Lluvia)' },
-        { id: 'birds', label: 'Birds (Pájaros)' },
-        { id: 'forest', label: 'Forest (Bosque Intenso)' },
-        { id: 'beach', label: 'Beach (Playa)' },
+        { id: 'birds', label: 'Birds (Pájaros/Bosque)' },
+        { id: 'office', label: 'Office (Oficina moderna)' },
         { id: 'storm', label: 'Storm (Tormenta)' },
-        { id: 'office', label: 'Urban (Oficina/Ciudad)' },
+        { id: 'wind', label: 'Wind (Viento)' },
         { id: 'cafe', label: 'Cafe (Cafetería)' },
-        { id: 'lofi', label: 'Lofi (Relaxing Beats)' },
-        { id: 'static', label: 'Static (Ruido Blanco)' },
+        { id: 'lofi', label: 'Lofi (Música LoFi)' },
     ];
 
     // State for voices (now objects)
@@ -436,9 +430,6 @@ export default function SynthesisPage() {
             formData.append('repetition_penalty', repetitionPenalty.toString());
             formData.append('top_p', topP.toString());
             formData.append('ambience_id', ambienceId);
-            if (ambienceId === 'custom' && ambiencePrompt) {
-                formData.append('ambience_prompt', ambiencePrompt);
-            }
 
             if (file) {
                 formData.append('audio_prompt', file);
@@ -484,12 +475,7 @@ export default function SynthesisPage() {
 
     const insertAmbienceTag = () => {
         if (!ambienceId) return;
-        let tag = '';
-        if (ambienceId === 'custom') {
-            tag = ambiencePrompt ? `[ambience:${ambiencePrompt}]` : '[ambience:...]';
-        } else {
-            tag = `[${ambienceId}]`;
-        }
+        const tag = `[${ambienceId}]`;
         setTextInput(prev => prev + (prev && !prev.endsWith(' ') ? ' ' : '') + tag + ' ');
     };
 
@@ -859,7 +845,7 @@ export default function SynthesisPage() {
                                                                 <span className="text-[9px] font-black uppercase tracking-widest">INSERTAR TAG</span>
                                                                 {ambienceId && (
                                                                     <span className="text-[8px] font-mono opacity-80">
-                                                                        {ambienceId === 'custom' ? '[ambience:...]' : `[${ambienceId}]`}
+                                                                        {`[${ambienceId}]`}
                                                                     </span>
                                                                 )}
                                                             </div>
@@ -867,51 +853,7 @@ export default function SynthesisPage() {
                                                     </div>
                                                 </div>
 
-                                                {/* Custom Ambience Prompt Trigger & Popup */}
-                                                {ambienceId === 'custom' && (
-                                                    <div className="mt-3">
-                                                        <button
-                                                            onClick={() => setShowPromptPopup(!showPromptPopup)}
-                                                            className={`w-full py-3 px-4 rounded-xl border ${borderClass} bg-neutral-500/10 hover:bg-neutral-500/20 active:scale-95 transition-all flex items-center justify-between group/prompt-btn`}
-                                                        >
-                                                            <div className="flex items-center gap-2 overflow-hidden">
-                                                                <Sparkles size={12} className="text-orange-500 shrink-0" />
-                                                                <span className="text-[10px] font-mono truncate opacity-60 group-hover/prompt-btn:opacity-100 transition-opacity">
-                                                                    {ambiencePrompt ? `"${ambiencePrompt}"` : 'Escribe tu prompt...'}
-                                                                </span>
-                                                            </div>
-                                                            <Edit2 size={10} className="opacity-30 group-hover/prompt-btn:opacity-100" />
-                                                        </button>
 
-                                                        {/* Floating Prompt Popup */}
-                                                        <div className={`absolute bottom-full left-0 right-0 mb-4 mx-[-1rem] p-4 bg-[#1a1a1a] border border-white/10 rounded-[1.5rem] shadow-2xl transition-all duration-300 origin-bottom z-50 ${showPromptPopup ? 'opacity-100 scale-100 translate-y-0' : 'opacity-0 scale-95 translate-y-4 pointer-events-none'}`}>
-                                                            <div className="flex items-center justify-between mb-3">
-                                                                <span className="text-[10px] font-black uppercase text-orange-500 tracking-[0.2em] flex items-center gap-2">
-                                                                    <Sparkles size={10} /> Prompt de Ambiente
-                                                                </span>
-                                                                <button onClick={() => setShowPromptPopup(false)} className="opacity-40 hover:opacity-100 hover:text-white transition-opacity">
-                                                                    <X size={12} />
-                                                                </button>
-                                                            </div>
-                                                            <textarea
-                                                                placeholder="Describe el ambiente... (Ej: lluvia suave sobre techo de metal con truenos lejanos, viento silbando)"
-                                                                value={ambiencePrompt}
-                                                                onChange={(e) => setAmbiencePrompt(e.target.value)}
-                                                                className="w-full min-h-[100px] p-3 text-[11px] leading-relaxed font-mono rounded-xl border border-white/10 bg-black/50 outline-none focus:ring-1 focus:ring-orange-500/50 transition-all placeholder:opacity-20 resize-none mb-3 custom-scrollbar"
-                                                                autoFocus={showPromptPopup}
-                                                            />
-                                                            <button
-                                                                onClick={() => setShowPromptPopup(false)}
-                                                                className="w-full py-2 bg-white text-black text-[10px] font-black uppercase rounded-lg hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-2"
-                                                            >
-                                                                Confirmar
-                                                            </button>
-
-                                                            {/* Arrow pointer */}
-                                                            <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 w-4 h-4 bg-[#1a1a1a] border-r border-b border-white/10 rotate-45"></div>
-                                                        </div>
-                                                    </div>
-                                                )}
                                             </div>
                                         </div>
                                     )}

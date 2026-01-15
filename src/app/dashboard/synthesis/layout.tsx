@@ -27,3 +27,5 @@ export default function SynthesisLayout({
 }) {
   return <>{children}</>;
 }
+
+

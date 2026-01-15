@@ -24,3 +24,5 @@ export default function HistoryLayout({
 }) {
   return <>{children}</>;
 }
+
+
