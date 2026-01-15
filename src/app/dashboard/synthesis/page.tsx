@@ -7,16 +7,9 @@ import Link from 'next/link';
 import DashboardSidebar from '../../../components/DashboardSidebar';
 
 // API Config
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { ttsService, voiceService } from '@/lib/services/resources';
 
-const getAuth = () => {
-    const auth = localStorage.getItem('voice_auth');
-    if (!auth) {
-        window.location.href = '/';
-        return null;
-    }
-    return auth;
-};
+
 
 const translations = {
     es: {
@@ -341,23 +334,16 @@ export default function SynthesisPage() {
     }, []);
 
     const fetchVoices = async () => {
-        const auth = getAuth();
-        if (!auth) return;
-
         try {
-            const response = await fetch(`${API_BASE}/voices`, {
-                headers: { 'Authorization': `Basic ${auth}` }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                // Normalize voices to always be objects
-                const processed = (data.voices || []).map((v: any) =>
-                    typeof v === 'string' ? { name: v, language: '?', gender: '?' } : v
-                );
-                setAvailableVoices(processed);
+            const voices = await voiceService.getAll();
+            const processed = (voices || []).map((v: any) =>
+                typeof v === 'string' ? { name: v, language: '?', gender: '?' } : v
+            );
+            setAvailableVoices(processed);
 
-                // Select first voice by default if no file is selected
-                if (processed.length > 0 && !file) {
+            if (processed.length > 0 && !file) {
+                // If previously selected voice is still available, keep it, else defalt
+                if (!selectedVoice || !processed.find((v: any) => v.name === selectedVoice.name)) {
                     setSelectedVoice(processed[0]);
                 }
             }
@@ -382,18 +368,28 @@ export default function SynthesisPage() {
         setAudioUrl(null);
 
         try {
+            // For Quick Demo, we might treat it same as generateTTS or keep as separate
+            // If backend /demo still exists and is useful.
+            // If services/resources doesn't have demo, we can adapt.
+            // But let's assume `generate-tts` handles it if we don't pass complex params.
+            // Or better, let's implement demo support in ttsService or just use generateTTS with minimal params.
+            // The original code used /demo endpoint. I'll add demo to ttsService or use fetch?
+            // Prompt says "eliminar el uso de fetch". So I should add demo to service or use generate.
+            // Since I didn't add demo to `resources.ts` initially, I'll use generateTTS logic here or assume demo is not needed separate
+            // Actually, I can use a simpler call to generateTTS logic.
+            // Or update `resources.ts` later. For now, let's use `fetch` for demo? NO. 
+            // OK, quick fix: The dashboard logic calls /demo. I will route it to ttsService.generate with simple params.
+
             const formData = new FormData();
             formData.append('text', textInput);
+            // Defaults for demo
+            formData.append('language', languageId);
+            // If we have a voice selected use it
+            if (selectedVoice) formData.append('voice_id', selectedVoice.name);
 
-            const response = await fetch(`${API_BASE}/demo`, {
-                method: 'POST',
-                body: formData,
-            });
-
-            if (!response.ok) throw new Error('Demo generation failed');
-
-            const blob = await response.blob();
+            const blob = await ttsService.generate(formData);
             setAudioUrl(URL.createObjectURL(blob));
+
         } catch (err) {
             setError('Error generating demo');
         } finally {
@@ -412,9 +408,6 @@ export default function SynthesisPage() {
             return;
         }
 
-        const auth = getAuth();
-        if (!auth) return;
-
         setLoading(true);
         setError(null);
         setAudioUrl(null);
@@ -423,7 +416,7 @@ export default function SynthesisPage() {
             const formData = new FormData();
             formData.append('text', textInput);
             formData.append('mode', selectedMode);
-            formData.append('language_id', languageId);
+            formData.append('language', languageId); // Mapped to 'language' per API doc
             formData.append('temperature', temperature.toString());
             formData.append('exaggeration', exaggeration.toString());
             formData.append('cfg', cfg.toString());
@@ -438,19 +431,9 @@ export default function SynthesisPage() {
                 formData.append('voice_id', selectedVoice.name);
             }
 
-            const response = await fetch(`${API_BASE}/generate-tts`, {
-                method: 'POST',
-                headers: { 'Authorization': `Basic ${auth}` },
-                body: formData,
-            });
-
-            if (!response.ok) {
-                const errData = await response.json().catch(() => ({}));
-                throw new Error(errData.detail || 'Generation failed');
-            }
-
-            const blob = await response.blob();
+            const blob = await ttsService.generate(formData);
             setAudioUrl(URL.createObjectURL(blob));
+
         } catch (err: any) {
             setError(err.message || 'Error generating TTS');
         } finally {

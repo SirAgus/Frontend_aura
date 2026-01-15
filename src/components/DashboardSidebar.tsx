@@ -1,6 +1,6 @@
 import React from 'react';
 import Link from 'next/link';
-import { Users, Mic, Clock, Settings, TrendingUp } from 'lucide-react';
+import { Users, Mic, Clock, Settings, TrendingUp, MessageSquare } from 'lucide-react';
 
 interface SidebarProps {
     theme: string;
@@ -24,8 +24,8 @@ export default function DashboardSidebar({ theme, currentPath, translations }: S
         <Link
             href={href}
             className={`w-full flex items-center gap-4 p-4 transition-colors ${isActive(href)
-                    ? (theme === 'light' ? 'bg-neutral-200 font-bold' : 'bg-neutral-800 font-bold')
-                    : 'hover:opacity-60'
+                ? (theme === 'light' ? 'bg-neutral-200 font-bold' : 'bg-neutral-800 font-bold')
+                : 'hover:opacity-60'
                 }`}
         >
             <Icon size={20} />
@@ -43,6 +43,7 @@ export default function DashboardSidebar({ theme, currentPath, translations }: S
                     <SidebarItem icon={TrendingUp} label={translations.home} href="/dashboard" />
                     <SidebarItem icon={Mic} label={translations.synthesis} href="/dashboard/synthesis" />
                     <SidebarItem icon={Users} label={translations.voiceLab} href="/dashboard/voices" />
+                    <SidebarItem icon={MessageSquare} label="AI Chat" href="/dashboard/chat" />
                     <SidebarItem icon={Clock} label={translations.history} href="/dashboard/history" />
                     <SidebarItem icon={Settings} label={translations.apiSettings} href="/dashboard/settings" />
                 </nav>

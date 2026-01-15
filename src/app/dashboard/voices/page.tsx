@@ -6,7 +6,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import DashboardSidebar from '../../../components/DashboardSidebar';
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+import { voiceService, ttsService } from '@/lib/services/resources';
 
 const translations = {
     es: {
@@ -103,40 +103,20 @@ export default function VoiceLabPage() {
         fetchVoices();
     }, []);
 
-    const getAuth = () => {
-        const auth = localStorage.getItem('voice_auth');
-        if (!auth) {
-            router.push('/');
-            return null;
-        }
-        return auth;
-    };
-
     const fetchVoices = async () => {
-        const auth = getAuth();
-        if (!auth) return;
-
         try {
-            const response = await fetch(`${API_BASE}/voices`, {
-                headers: { 'Authorization': `Basic ${auth}` }
-            });
-            if (response.ok) {
-                const data = await response.json();
-                // Handle both old (array of strings) and new (array of objects) formats gracefully
-                const processedVoices = (data.voices || []).map((v: any) =>
-                    typeof v === 'string' ? { name: v, language: '?', gender: '?' } : v
-                );
-                setVoices(processedVoices);
-            }
+            const voices = await voiceService.getAll();
+            // Handle both old (array of strings) and new (array of objects) formats gracefully
+            const processedVoices = (voices || []).map((v: any) =>
+                typeof v === 'string' ? { name: v, language: '?', gender: '?' } : v
+            );
+            setVoices(processedVoices);
         } catch (e) { console.error(e); }
     };
 
     const handleUpload = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!file || !voiceName) return;
-
-        const auth = getAuth();
-        if (!auth) return;
 
         setLoading(true);
         setMessage(null);
@@ -151,13 +131,8 @@ export default function VoiceLabPage() {
         formData.append('description', description);
 
         try {
-            const response = await fetch(`${API_BASE}/voices/upload`, {
-                method: 'POST',
-                headers: { 'Authorization': `Basic ${auth}` },
-                body: formData,
-            });
-
-            if (response.ok) {
+            const res = await voiceService.upload(formData);
+            if (res) {
                 setMessage({ type: 'success', text: t.successUpload });
                 setVoiceName('');
                 setLanguage('es');
@@ -166,8 +141,6 @@ export default function VoiceLabPage() {
                 setDescription('');
                 setFile(null);
                 fetchVoices();
-            } else {
-                throw new Error('Upload failed');
             }
         } catch (err) {
             setMessage({ type: 'error', text: t.errorUpload });
@@ -180,20 +153,8 @@ export default function VoiceLabPage() {
         e.preventDefault();
         if (!editingVoice) return;
 
-        const auth = getAuth();
-        if (!auth) return;
-
-        // PUT /voices/{id}
-        // Assuming backend accepts formData or params. Prompt says "PUT /voices/{voice_id}: Renombra una voz o actualiza sus metadatos".
         try {
-            // Since the prompt doesn't specify if it's JSON or FormData for PUT, I'll assume query params for simplicity as per common pattern in FastAPIs or similar to upload but without file.
-            // However, proper REST PUT usually takes body.
-            // Based on upload using FormData, let's try FormData without file, or JSON.
-            // "Renombra una voz" implies 'name' param can change? If ID changes, that's tricky.
-            // Let's assume ID is the original name and we pass new_name.
-
             const params = new URLSearchParams();
-            // Only send new_name if it's different from the original to avoid unnecessary rename operations
             if (editingVoice.newName && editingVoice.newName !== editingVoice.originalName) {
                 params.append('new_name', editingVoice.newName);
             }
@@ -202,31 +163,16 @@ export default function VoiceLabPage() {
             params.append('gender', editingVoice.gender);
             params.append('description', editingVoice.description);
 
-            const response = await fetch(`${API_BASE}/voices/${editingVoice.originalName}?${params.toString()}`, {
-                method: 'PUT',
-                headers: { 'Authorization': `Basic ${auth}` }
-            });
-
-            if (response.ok) {
-                setEditingVoice(null);
-                fetchVoices();
-            } else {
-                console.error("Update failed");
-            }
+            await voiceService.update(editingVoice.originalName, params);
+            setEditingVoice(null);
+            fetchVoices();
         } catch (err) { console.error(err); }
     };
 
     const handleDelete = async (voiceName: string) => {
         if (!confirm(t.deleteConfirm)) return;
-
-        const auth = getAuth();
-        if (!auth) return;
-
         try {
-            await fetch(`${API_BASE}/voices/${voiceName}`, {
-                method: 'DELETE',
-                headers: { 'Authorization': `Basic ${auth}` }
-            });
+            await voiceService.delete(voiceName);
             fetchVoices();
         } catch (e) { console.error(e); }
     };
@@ -239,26 +185,13 @@ export default function VoiceLabPage() {
             return;
         }
 
-        const auth = getAuth();
-        if (!auth) return;
-
         setPlayingVoice(voiceName);
         try {
             const formData = new FormData();
             formData.append('text', `Hola, esta es una prueba de voz.`); // Spanish default
             formData.append('voice_id', voiceName);
-            // If the voice metadata says 'en', maybe backend handles it.
-            // But here we just assume it works.
 
-            const response = await fetch(`${API_BASE}/generate-tts`, {
-                method: 'POST',
-                headers: { 'Authorization': `Basic ${auth}` },
-                body: formData,
-            });
-
-            if (!response.ok) throw new Error('Preview failed');
-
-            const blob = await response.blob();
+            const blob = await ttsService.generate(formData);
             const url = URL.createObjectURL(blob);
 
             if (audioRef.current) {

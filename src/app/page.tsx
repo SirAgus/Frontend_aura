@@ -1,10 +1,11 @@
 'use client';
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Moon, Sun, Mic, Activity, Cpu, Languages, Play, X, Menu, ArrowRight, User, Lock, Mail, Globe, Pause } from 'lucide-react';
+import { Moon, Sun, Mic, Activity, Cpu, Languages, Play, X, Menu, ArrowRight, User, Lock, Mail, Globe, Pause, CheckCircle2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import CursorTrail from '@/components/CursorTrail';
+import { authService } from '@/lib/services/auth';
 
 // Translations
 const translations = {
@@ -229,46 +230,84 @@ export default function LandingPage() {
     }
   };
 
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+  const [passwordCriteria, setPasswordCriteria] = useState({
+    length: false,
+    upper: false,
+    number: false,
+    symbol: false,
+    match: false
+  });
+
+  useEffect(() => {
+    setPasswordCriteria({
+      length: password.length >= 8 && password.length <= 50,
+      upper: /[A-Z]/.test(password),
+      number: /[0-9]/.test(password),
+      symbol: /[!@#$%^&*(),.?":{}|<>]/.test(password),
+      match: password.length > 0 && password === confirmPassword
+    });
+  }, [password, confirmPassword]);
+
+  const validatePassword = (pwd: string) => {
+    const minLength = 8;
+    const maxLength = 50;
+    const hasUpperCase = /[A-Z]/.test(pwd);
+    const hasNumber = /[0-9]/.test(pwd);
+    const hasSymbol = /[!@#$%^&*(),.?":{}|<>]/.test(pwd);
+
+    return pwd.length >= minLength && pwd.length <= maxLength && hasUpperCase && hasNumber && hasSymbol;
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
-
-    // If signup mode, imply success or switch to logic. For now just handle login for 'signin'
-    if (authMode === 'signup') {
-      // Mock signup or just log
-      console.log('Signup not implemented in backend yet');
-      return;
-    }
 
     if (!username || !password) {
       setLoginError('Credenciales requeridas');
       return;
     }
 
-    setLoginError('');
+    if (authMode === 'signup') {
+      if (password !== confirmPassword) {
+        setLoginError('Las contraseñas no coinciden');
+        return;
+      }
+      if (!validatePassword(password)) {
+        setLoginError('La contraseña debe tener entre 8-50 caracteres, incluir 1 mayúscula, 1 número y 1 símbolo.');
+        return;
+      }
+    }
 
     try {
-      const credentials = btoa(`${username}:${password}`);
-      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${apiUrl}/login`, {
-        method: 'POST',
-        headers: { 'Authorization': `Basic ${credentials}` }
-      });
+      let data;
+      if (authMode === 'signup') {
+        data = await authService.signup(username, password);
+      } else {
+        data = await authService.login(username, password);
+      }
 
-      const data = await response.json();
-
-      if (data.success) {
-        // Login exitoso
-        localStorage.setItem('voice_auth', credentials);
-        localStorage.setItem('voice_user', data.user || username);
+      // Check success (Service returns the data directly if 200)
+      // Login returns { access_token, user_id, ... }
+      // Signup returns { id, username, access_token, ... }
+      if (data && data.access_token) {
+        // Backend handles cookies via Route Handler now (voice_token)
+        // But we also store locally for UI convenience if needed or relying on cookie solely?
+        // User requested cookies, but frontend might still expect localStorage for basic checks
+        // "voice_token" cookie is set by route.ts.
+        // Let's rely on the response data for immediate use if needed or redirection.
+        localStorage.setItem('voice_token', data.access_token);
+        localStorage.setItem('voice_user_id', (data.user_id || data.id || '').toString());
+        localStorage.setItem('voice_user', username);
         router.push('/dashboard');
       } else {
-        // Login fallido
-        setLoginError(data.message || 'Credenciales incorrectas');
+        setLoginError('No se pudo autenticar');
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error('Login error:', error);
-      setLoginError('Error de conexión con el servidor');
+      const msg = error.response?.data?.error || error.response?.data?.detail || 'Error de conexión';
+      setLoginError(typeof msg === 'string' ? msg : JSON.stringify(msg));
     }
   };
 
@@ -492,7 +531,47 @@ export default function LandingPage() {
                 />
               </div>
 
-              {loginError && <p className="text-xs text-red-500 font-mono">{loginError}</p>}
+              {authMode === 'signup' && (
+                <div className="flex flex-col gap-2 px-1 mb-2">
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className={`flex items-center gap-2 text-[10px] uppercase font-bold tracking-tighter ${passwordCriteria.length ? 'text-emerald-500' : 'opacity-40'}`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${passwordCriteria.length ? 'bg-emerald-500' : 'bg-neutral-500'}`}></div>
+                      8-50 CHARS
+                    </div>
+                    <div className={`flex items-center gap-2 text-[10px] uppercase font-bold tracking-tighter ${passwordCriteria.upper ? 'text-emerald-500' : 'opacity-40'}`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${passwordCriteria.upper ? 'bg-emerald-500' : 'bg-neutral-500'}`}></div>
+                      1 UPPERCASE
+                    </div>
+                    <div className={`flex items-center gap-2 text-[10px] uppercase font-bold tracking-tighter ${passwordCriteria.number ? 'text-emerald-500' : 'opacity-40'}`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${passwordCriteria.number ? 'bg-emerald-500' : 'bg-neutral-500'}`}></div>
+                      1 NUMBER
+                    </div>
+                    <div className={`flex items-center gap-2 text-[10px] uppercase font-bold tracking-tighter ${passwordCriteria.symbol ? 'text-emerald-500' : 'opacity-40'}`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${passwordCriteria.symbol ? 'bg-emerald-500' : 'bg-neutral-500'}`}></div>
+                      1 SYMBOL
+                    </div>
+                    <div className={`flex items-center gap-2 text-[10px] uppercase font-bold tracking-tighter ${passwordCriteria.match ? 'text-emerald-500' : 'opacity-40'}`}>
+                      <div className={`w-1.5 h-1.5 rounded-full ${passwordCriteria.match ? 'bg-emerald-500' : 'bg-neutral-500'}`}></div>
+                      PASS MATCH
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {authMode === 'signup' && (
+                <div className="relative group">
+                  <CheckCircle2 className={`absolute left-4 top-1/2 -translate-y-1/2 w-4 h-4 ${textSubtle}`} />
+                  <input
+                    type="password"
+                    value={confirmPassword}
+                    onChange={e => setConfirmPassword(e.target.value)}
+                    placeholder="Confirmar Contraseña"
+                    className={`w-full p-4 pl-12 text-sm outline-none transition-colors border ${inputClasses}`}
+                  />
+                </div>
+              )}
+
+              {loginError && <p className="text-xs text-red-500 font-mono max-w-xs">{loginError}</p>}
 
               <button type="submit" className={`mt-4 py-4 px-6 w-full font-bold text-sm tracking-widest uppercase flex items-center justify-center gap-2 transition-all hover:opacity-90 ${theme === 'light' ? 'bg-black text-white' : 'bg-white text-black'}`}>
                 {authMode === 'signin' ? t.authenticate : t.initializeAccount}
@@ -731,6 +810,6 @@ export default function LandingPage() {
           50% { height: 100%; }
         }
       `}</style>
-    </div>
+    </div >
   );
 }

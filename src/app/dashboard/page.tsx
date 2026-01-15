@@ -75,6 +75,7 @@ const UsersIcon = ({ size, ...props }: any) => (
 );
 
 import DashboardSidebar from '../../components/DashboardSidebar';
+import { systemService, userService, voiceService, historyService } from '@/lib/services/resources';
 
 export default function DashboardHome() {
     const router = useRouter();
@@ -95,6 +96,7 @@ export default function DashboardHome() {
         multilingual_support: string;
         available_modes: string[];
     } | null>(null);
+    const [userInfo, setUserInfo] = useState<{ id: number; username: string } | null>(null);
 
     const t = translations[lang];
 
@@ -104,48 +106,58 @@ export default function DashboardHome() {
 
     const fetchDashboardData = async () => {
         try {
-            const storedAuth = localStorage.getItem('voice_auth');
-            if (!storedAuth) {
+            const token = localStorage.getItem('voice_token');
+            if (!token) {
                 router.push('/');
                 return;
             }
-            const authHeader = { 'Authorization': 'Basic ' + storedAuth };
-            const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
             // 0. Fetch System Info
             try {
-                const systemRes = await fetch(`${apiUrl}/`, { headers: authHeader });
-                if (systemRes.ok) {
-                    const systemData = await systemRes.json();
+                const systemData = await systemService.getStatus();
+                if (systemData) {
                     setSystemInfo(systemData);
                 }
             } catch (e) {
                 console.error("Error fetching system info:", e);
             }
 
+            // 0. Fetch User Info
+            try {
+                const userData = await userService.getMe();
+                setUserInfo(userData);
+            } catch (e) {
+                console.error("Error fetching user info:", e);
+            }
+
             // 1. Fetch Voices Count
-            const voicesRes = await fetch(`${apiUrl}/voices`, { headers: authHeader });
-            const voicesData = await voicesRes.json();
-            const voicesCount = voicesData.voices ? voicesData.voices.length : 0;
+            try {
+                const voices = await voiceService.getAll();
+                const voicesCount = voices ? voices.length : 0;
 
-            // 2. Fetch History for Stats & Recent Activity
-            const historyRes = await fetch(`${apiUrl}/history`, { headers: authHeader });
-            const historyData = await historyRes.json();
+                // 2. Fetch History
+                const historyData = await historyService.getAll() || [];
 
-            // Process History Data
-            const today = new Date().toISOString().split('T')[0];
-            const todayCount = historyData.filter((item: any) => item.timestamp.startsWith(today)).length;
+                // Process History Data
+                const today = new Date().toISOString().split('T')[0];
+                const todayCount = historyData.filter((item: any) => item.timestamp && item.timestamp.startsWith(today)).length;
 
-            // Sort by newest first and take top 5
-            const sortedHistory = historyData.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+                // Sort by newest first and take top 5
+                const sortedHistory = historyData.sort((a: any, b: any) =>
+                    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+                );
 
-            setStats({
-                voicesCount,
-                generationsToday: todayCount,
-                totalGenerations: historyData.length,
-                latency: '45ms' // Simulated for now
-            });
-            setRecentHistory(sortedHistory.slice(0, 5));
+                setStats({
+                    voicesCount,
+                    generationsToday: todayCount,
+                    totalGenerations: historyData.length,
+                    latency: '45ms'
+                });
+                setRecentHistory(sortedHistory.slice(0, 5));
+
+            } catch (e) {
+                console.error("Error fetching data:", e);
+            }
 
         } catch (error) {
             console.error("Error fetching dashboard data:", error);
@@ -219,9 +231,9 @@ export default function DashboardHome() {
                         <div className={`h-4 w-[1px] ${theme === 'light' ? 'bg-neutral-300' : 'bg-neutral-800'} hidden md:block`}></div>
                         <div className="flex items-center gap-2">
                             <div className={`w-6 h-6 rounded-full ${theme === 'light' ? 'bg-black text-white' : 'bg-white text-black'} flex items-center justify-center text-xs font-bold`}>
-                                U
+                                {userInfo ? userInfo.username.charAt(0).toUpperCase() : 'U'}
                             </div>
-                            <span className="text-xs font-bold hidden md:inline">USER_01</span>
+                            <span className="text-xs font-bold hidden md:inline uppercase">{userInfo ? userInfo.username : 'USER'}</span>
                         </div>
 
                         <button
