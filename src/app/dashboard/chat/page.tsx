@@ -8,6 +8,8 @@ import {
 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import DashboardSidebar from '../../../components/DashboardSidebar';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 
 import { chatService, userService, voiceService } from '@/lib/services/resources';
 import { useAudioQueue } from '@/hooks/useAudioQueue';
@@ -361,7 +363,10 @@ export default function ChatPage() {
                     // 3. UI Display Logic: Clean markers and partials
                     let displayBody = fullStreamText
                         .replace(/\|\|USER_TRANSCRIPTION:[\s\S]*?\|\|/g, "")
-                        .replace(/\|\|(VOICE_STREAM|VOICE_CHUNK):[\s\S]*?\|\|/g, "");
+                        .replace(/\|\|(VOICE_STREAM|VOICE_CHUNK):[\s\S]*?\|\|/g, "")
+                        .replace(/<\|im_end\|>/g, "")
+                        .replace(/<\|endoftext\|>/g, "")
+                        .replace(/<\|im_start\|>/g, "");
 
                     // Strip any partial markers at the end to avoid flickering
                     displayBody = displayBody.replace(/\|\|[A-Z_]*:?[\s\S]*$/, "");
@@ -607,11 +612,44 @@ export default function ChatPage() {
                                                 </div>
                                             )}
 
-                                            <div className={`max-w-[80%] p-4 rounded-2xl text-sm leading-relaxed shadow-sm ${msg.role === 'user'
+                                            <div className={`max-w-[80%] p-4 rounded-2xl text-sm leading-relaxed shadow-sm prose dark:prose-invert ${msg.role === 'user'
                                                 ? (theme === 'light' ? 'bg-black text-white rounded-tr-sm' : 'bg-white text-black rounded-tr-sm')
                                                 : (theme === 'light' ? 'bg-white border border-neutral-200 rounded-tl-sm' : 'bg-neutral-900 border border-neutral-800 rounded-tl-sm')
                                                 }`}>
-                                                {msg.content}
+                                                {msg.role === 'user' ? (
+                                                    msg.content
+                                                ) : (
+                                                    <ReactMarkdown
+                                                        remarkPlugins={[remarkGfm]}
+                                                        components={{
+                                                            p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
+                                                            code: ({ node, inline, className, children, ...props }: any) => {
+                                                                const match = /language-(\w+)/.exec(className || '');
+                                                                return !inline ? (
+                                                                    <pre className={`bg-neutral-500/10 p-3 rounded-lg overflow-x-auto text-xs font-mono my-2 border ${borderClass}`}>
+                                                                        <code className={className} {...props}>
+                                                                            {children}
+                                                                        </code>
+                                                                    </pre>
+                                                                ) : (
+                                                                    <code className="bg-neutral-500/10 px-1.5 py-0.5 rounded text-xs font-mono" {...props}>
+                                                                        {children}
+                                                                    </code>
+                                                                );
+                                                            },
+                                                            ul: ({ children }) => <ul className="list-disc ml-4 mb-2">{children}</ul>,
+                                                            ol: ({ children }) => <ol className="list-decimal ml-4 mb-2">{children}</ol>,
+                                                            li: ({ children }) => <li className="mb-1">{children}</li>,
+                                                            h1: ({ children }) => <h1 className="text-lg font-bold mb-2 uppercase tracking-tighter">{children}</h1>,
+                                                            h2: ({ children }) => <h2 className="text-md font-bold mb-2 uppercase tracking-tight">{children}</h2>,
+                                                            table: ({ children }) => <div className="overflow-x-auto my-4"><table className={`min-w-full border-collapse border ${borderClass}`}>{children}</table></div>,
+                                                            th: ({ children }) => <th className={`border ${borderClass} px-4 py-2 bg-neutral-500/5 text-left`}>{children}</th>,
+                                                            td: ({ children }) => <td className={`border ${borderClass} px-4 py-2`}>{children}</td>,
+                                                        }}
+                                                    >
+                                                        {msg.content}
+                                                    </ReactMarkdown>
+                                                )}
                                             </div>
 
                                             {msg.role === 'user' && (

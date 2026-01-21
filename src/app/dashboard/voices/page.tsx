@@ -206,7 +206,9 @@ export default function VoiceLabPage() {
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('voice_auth');
+        localStorage.removeItem('voice_token');
+        localStorage.removeItem('voice_user_id');
+        localStorage.removeItem('voice_user');
         router.push('/');
     };
 

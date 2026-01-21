@@ -543,6 +543,19 @@ export default function SynthesisPage() {
                                     </>
                                 )}
 
+                                {/* Voice Selector */}
+                                <div className={`h-6 w-[1px] ${borderClass}`}></div>
+                                <div className="flex items-center gap-1">
+                                    <span className="font-mono text-[10px] opacity-60 hidden md:inline">VOZ:</span>
+                                    <button
+                                        onClick={() => setShowVoiceModal(true)}
+                                        className={`px-1 py-1 text-xs border ${borderClass} bg-transparent font-mono outline-none max-w-[100px] truncate text-left flex justify-between items-center group`}
+                                    >
+                                        <span className="truncate">{selectedVoice ? selectedVoice.name : "SELECT"}</span>
+                                        <Users size={10} className="ml-1 opacity-40 group-hover:opacity-100" />
+                                    </button>
+                                </div>
+
                                 {(selectedMode === 'multilingual' || selectedMode === 'original') && (
                                     <>
                                         <div className={`h-6 w-[1px] ${borderClass}`}></div>
@@ -605,36 +618,65 @@ export default function SynthesisPage() {
 
                                 <div className={`h-6 w-[1px] ${borderClass}`}></div>
 
-                                <button
-                                    onClick={() => setTextInput('')}
-                                    className="px-2 py-1.5 rounded opacity-40 hover:opacity-100 font-mono text-xs flex items-center gap-2 transition-opacity"
-                                    title={t.clear}
-                                >
-                                    <RefreshCw size={12} />
-                                </button>
-                                <div className={`h-6 w-[1px] ${borderClass}`}></div>
-                                <button
-                                    onClick={handleQuickDemo}
-                                    disabled={loading}
-                                    className={`px-3 py-1.5 rounded border ${borderClass} font-bold text-[10px] uppercase flex items-center gap-1.5 hover:bg-neutral-500/5 transition-colors ${loading && 'opacity-50 cursor-not-allowed'}`}
-                                >
-                                    <Sparkles size={10} className="text-purple-500" />
-                                    <span className="hidden sm:inline">{t.quickDemo}</span>
-                                </button>
-                                <button
-                                    onClick={handleGenerateTTS}
-                                    disabled={loading}
-                                    className={`px-4 py-1.5 rounded font-bold text-[10px] uppercase flex items-center gap-1.5 shadow-lg hover:shadow-xl hover:scale-105 transition-all active:scale-95 ${theme === 'light' ? 'bg-black text-white' : 'bg-white text-black'} ${loading && 'opacity-50 cursor-not-allowed'}`}
-                                >
-                                    <Play size={10} fill="currentColor" />
-                                    {t.generate}
-                                </button>
+                                <div className="flex items-center gap-1">
+                                    <button
+                                        onClick={() => setTextInput('')}
+                                        className="px-2 py-1.5 rounded opacity-40 hover:opacity-100 font-mono text-xs flex items-center gap-2 transition-opacity"
+                                        title={t.clear}
+                                    >
+                                        <RefreshCw size={12} />
+                                    </button>
+                                    <div className={`h-6 w-[1px] ${borderClass}`}></div>
+                                    {audioUrl && (
+                                        <button
+                                            onClick={() => {
+                                                if (audioRef.current) {
+                                                    if (isPlaying) audioRef.current.pause();
+                                                    else audioRef.current.play();
+                                                }
+                                            }}
+                                            className={`px-3 py-1.5 rounded border ${borderClass} font-bold text-[10px] uppercase flex items-center gap-1.5 bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20 transition-all shadow-[0_0_15px_rgba(16,185,129,0.2)] animate-in fade-in zoom-in-95`}
+                                        >
+                                            {isPlaying ? (
+                                                <>
+                                                    <div className="flex gap-0.5 items-end h-2.5 mb-0.5">
+                                                        <div className="w-0.5 h-1.5 bg-current animate-[pulse_0.6s_ease-in-out_infinite]" />
+                                                        <div className="w-0.5 h-2.5 bg-current animate-[pulse_0.8s_ease-in-out_infinite]" />
+                                                        <div className="w-0.5 h-1.5 bg-current animate-[pulse_0.7s_ease-in-out_infinite]" />
+                                                    </div>
+                                                    <span className="hidden sm:inline">{t.pause}</span>
+                                                </>
+                                            ) : (
+                                                <>
+                                                    <Play size={10} fill="currentColor" />
+                                                    <span className="hidden sm:inline">{t.play}</span>
+                                                </>
+                                            )}
+                                        </button>
+                                    )}
+                                    <button
+                                        onClick={handleQuickDemo}
+                                        disabled={loading}
+                                        className={`px-3 py-1.5 rounded border ${borderClass} font-bold text-[10px] uppercase flex items-center gap-1.5 hover:bg-neutral-500/5 transition-colors ${loading && 'opacity-50 cursor-not-allowed'}`}
+                                    >
+                                        <Sparkles size={10} className="text-purple-500" />
+                                        <span className="hidden sm:inline">{t.quickDemo}</span>
+                                    </button>
+                                    <button
+                                        onClick={handleGenerateTTS}
+                                        disabled={loading}
+                                        className={`px-4 py-1.5 rounded font-bold text-[10px] uppercase flex items-center gap-1.5 shadow-lg hover:shadow-xl hover:scale-105 transition-all active:scale-95 ${theme === 'light' ? 'bg-black text-white' : 'bg-white text-black'} ${loading && 'opacity-50 cursor-not-allowed'}`}
+                                    >
+                                        <Play size={10} fill="currentColor" />
+                                        {t.generate}
+                                    </button>
+                                </div>
                             </div>
                         </div>
                         <div className="flex-1 relative p-12 overflow-y-auto">
                             {/* Active Voice Spotlight (The "Foto" section) */}
-                            {selectedVoice && !file && (
-                                <div key={selectedVoice.name} className={`absolute top-12 right-12 animate-in fade-in slide-in-from-right-10 zoom-in-95 duration-700 ${loading ? 'z-50' : 'z-20'}`}>
+                            {(!file) && (
+                                <div className={`absolute top-12 right-12 animate-in fade-in slide-in-from-right-10 zoom-in-95 duration-700 ${loading ? 'z-50' : 'z-20'}`}>
                                     <div
                                         className={`p-6 rounded-[2rem] border ${borderClass} ${theme === 'light' ? 'bg-white/90 shadow-[20px_20px_60px_-15px_rgba(0,0,0,0.1)]' : 'bg-black/80 shadow-[20px_20px_60px_-15px_rgba(0,0,0,0.5)]'} backdrop-blur-xl flex flex-col items-center gap-4 w-52 transition-all duration-500 hover:-translate-y-2 group animate-float relative overflow-hidden`}
                                         style={{
@@ -658,9 +700,16 @@ export default function SynthesisPage() {
                                                 className={`w-28 h-28 rounded-full flex items-center justify-center relative z-10 transition-all duration-700 overflow-hidden cursor-pointer ${isPlaying ? 'rotate-[10deg] scale-105' : 'hover:scale-105'} ${theme === 'light' ? 'bg-neutral-900 text-white' : 'bg-white text-black'} shadow-2xl group/btn`}
                                             >
                                                 {/* Text Initial or Loading Spinner */}
-                                                <div className={`text-4xl font-black transition-all duration-500 group-hover/btn:opacity-0 group-hover/btn:scale-50`}>
-                                                    {loading ? <Loader2 size={32} className="animate-spin opacity-40" /> : selectedVoice.name.charAt(0).toUpperCase()}
-                                                </div>
+                                                {!selectedVoice ? (
+                                                    <div className="text-emerald-500 animate-pulse flex flex-col items-center gap-1">
+                                                        <PlusCircle size={32} />
+                                                        <span className="text-[10px] font-black uppercase">Click</span>
+                                                    </div>
+                                                ) : (
+                                                    <div className={`text-4xl font-black transition-all duration-500 group-hover/btn:opacity-0 group-hover/btn:scale-50`}>
+                                                        {loading ? <Loader2 size={32} className="animate-spin opacity-40" /> : selectedVoice.name.charAt(0).toUpperCase()}
+                                                    </div>
+                                                )}
 
                                                 {/* Search/Change Overlay on hover */}
                                                 <div className={`absolute inset-0 flex items-center justify-center bg-emerald-500 opacity-0 group-hover/btn:opacity-100 transition-opacity backdrop-blur-sm z-20 text-white rounded-full`}>
@@ -706,16 +755,18 @@ export default function SynthesisPage() {
                                         </div>
 
                                         <div className="text-center relative z-10 pt-2">
-                                            <div className="text-sm font-black uppercase tracking-[0.2em] mb-1">{selectedVoice.name}</div>
+                                            <div className="text-sm font-black uppercase tracking-[0.2em] mb-1">{selectedVoice ? selectedVoice.name : "NO VOICE"}</div>
                                             <div className="flex items-center justify-center gap-2">
                                                 {loading ? (
                                                     <span className="text-[9px] font-mono text-emerald-500 animate-pulse uppercase tracking-widest">{t.synthesizing}</span>
-                                                ) : (
+                                                ) : selectedVoice ? (
                                                     <>
                                                         <span className="text-[9px] font-mono opacity-40 uppercase">{selectedVoice.gender}</span>
                                                         <div className="w-1 h-1 rounded-full bg-neutral-500/20"></div>
                                                         <span className="text-[9px] font-mono opacity-40 uppercase">{selectedVoice.region}</span>
                                                     </>
+                                                ) : (
+                                                    <span className="text-[9px] font-mono opacity-40 uppercase">SELECT TO START</span>
                                                 )}
                                             </div>
                                         </div>
@@ -885,6 +936,7 @@ export default function SynthesisPage() {
                             <audio
                                 ref={audioRef}
                                 src={audioUrl}
+                                autoPlay
                                 onPlay={() => setIsPlaying(true)}
                                 onPause={() => setIsPlaying(false)}
                                 onEnded={() => setIsPlaying(false)}
@@ -1135,7 +1187,23 @@ export default function SynthesisPage() {
                                         </div>
 
                                         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
-                                            {availableVoices
+                                            {availableVoices.length === 0 ? (
+                                                <div className="col-span-full py-20 text-center border border-dashed border-neutral-500/20 rounded-[2.5rem] opacity-40">
+                                                    <Loader2 size={32} className="mx-auto mb-4 animate-spin" />
+                                                    <p className="font-mono text-xs uppercase tracking-widest">Cargando identidades neuronales...</p>
+                                                </div>
+                                            ) : availableVoices
+                                                .filter(v => {
+                                                    const matchesSearch = v.name.toLowerCase().includes(searchQuery.toLowerCase()) || (v.language && v.language.toLowerCase().includes(searchQuery.toLowerCase()));
+                                                    const matchesGender = filterGender === "all" || v.gender?.toLowerCase() === filterGender;
+                                                    const matchesLang = filterLanguage === "all" || (v.language || v.region) === filterLanguage;
+                                                    return matchesSearch && matchesGender && matchesLang;
+                                                }).length === 0 ? (
+                                                <div className="col-span-full py-20 text-center border border-dashed border-neutral-500/20 rounded-[2.5rem] opacity-40">
+                                                    <Search size={32} className="mx-auto mb-4" />
+                                                    <p className="font-mono text-xs uppercase tracking-widest">No se encontraron voces con estos filtros.</p>
+                                                </div>
+                                            ) : availableVoices
                                                 .filter(v => {
                                                     const matchesSearch = v.name.toLowerCase().includes(searchQuery.toLowerCase()) || (v.language && v.language.toLowerCase().includes(searchQuery.toLowerCase()));
                                                     const matchesGender = filterGender === "all" || v.gender?.toLowerCase() === filterGender;

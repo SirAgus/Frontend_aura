@@ -10,12 +10,12 @@ import { useRef } from 'react'; // Ensure useRef is imported
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
 
 const getAuth = () => {
-    const auth = localStorage.getItem('voice_auth');
-    if (!auth) {
+    const token = localStorage.getItem('voice_token');
+    if (!token) {
         window.location.href = '/';
         return null;
     }
-    return auth;
+    return token;
 };
 
 const translations = {
@@ -90,13 +90,11 @@ export default function HistoryPage() {
     }, []);
 
     const fetchHistory = async () => {
-        const auth = getAuth();
-        if (!auth) return;
+        const token = getAuth();
+        if (!token) return;
 
         try {
-            const response = await fetch(`${API_BASE}/history`, {
-                headers: { 'Authorization': `Basic ${auth}` }
-            });
+            const response = await fetch('/api/history');
             if (response.ok) {
                 const data = await response.json();
                 // Sort by timestamp desc
@@ -111,13 +109,11 @@ export default function HistoryPage() {
     };
 
     const handleDownload = async (filename: string) => {
-        const auth = getAuth();
-        if (!auth) return;
+        const token = getAuth();
+        if (!token) return;
 
         try {
-            const response = await fetch(`${API_BASE}/download/${filename}`, {
-                headers: { 'Authorization': `Basic ${auth}` }
-            });
+            const response = await fetch(`/api/history/download?filename=${filename}`);
             if (!response.ok) return;
 
             const blob = await response.blob();
@@ -138,14 +134,12 @@ export default function HistoryPage() {
             return;
         }
 
-        const auth = getAuth();
-        if (!auth) return;
+        const token = getAuth();
+        if (!token) return;
 
         try {
             setPlayingFile(filename); // Optimistic UI update (show spinner or play state)
-            const response = await fetch(`${API_BASE}/download/${filename}`, {
-                headers: { 'Authorization': `Basic ${auth}` }
-            });
+            const response = await fetch(`/api/history/download?filename=${filename}`);
 
             if (!response.ok) throw new Error('Playback failed');
 
@@ -199,7 +193,9 @@ export default function HistoryPage() {
     };
 
     const handleLogout = () => {
-        localStorage.removeItem('voice_auth');
+        localStorage.removeItem('voice_token');
+        localStorage.removeItem('voice_user_id');
+        localStorage.removeItem('voice_user');
         router.push('/');
     };
 
