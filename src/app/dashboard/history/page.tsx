@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { Moon, Sun, Waves, Globe, LogOut, Mic, Users, Clock, Settings, Download, Trash2, FileAudio, RefreshCw, Play, Pause, Loader2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { HistoryItem } from '@/types';
 import DashboardSidebar from '../../../components/DashboardSidebar';
 import { useRef } from 'react'; // Ensure useRef is imported
 
@@ -76,7 +77,7 @@ export default function HistoryPage() {
     const [theme, setTheme] = useState('light');
     const [lang, setLang] = useState<'es' | 'en'>('es');
 
-    const [history, setHistory] = useState<any[]>([]);
+    const [history, setHistory] = useState<HistoryItem[]>([]);
     const [loading, setLoading] = useState(true);
 
     // Audio Player State
@@ -98,7 +99,7 @@ export default function HistoryPage() {
             if (response.ok) {
                 const data = await response.json();
                 // Sort by timestamp desc
-                const sorted = data.sort((a: any, b: any) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+                const sorted = (data as HistoryItem[]).sort((a: HistoryItem, b: HistoryItem) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
                 setHistory(sorted);
             }
         } catch (e) {
@@ -295,13 +296,19 @@ export default function HistoryPage() {
                                                 </td>
                                                 <td className="p-4 text-right flex items-center justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                                                     <button
-                                                        onClick={() => handlePlay(item.filename)}
+                                                        onClick={() => item.filename && handlePlay(item.filename)}
                                                         className={`p-2 rounded-full transition-colors ${playingFile === item.filename ? 'bg-emerald-500 text-white' : 'hover:bg-neutral-500/10'}`}
                                                         title="Play"
+                                                        disabled={!item.filename}
                                                     >
                                                         {playingFile === item.filename ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
                                                     </button>
-                                                    <button onClick={() => handleDownload(item.filename)} className="p-2 hover:bg-neutral-500/10 rounded-full" title="Download">
+                                                    <button
+                                                        onClick={() => item.filename && handleDownload(item.filename)}
+                                                        className="p-2 hover:bg-neutral-500/10 rounded-full"
+                                                        title="Download"
+                                                        disabled={!item.filename}
+                                                    >
                                                         <Download size={16} />
                                                     </button>
                                                     <button onClick={() => handleDeleteEntry(item.id)} className="p-2 hover:bg-red-500/10 text-red-500 rounded-full" title="Delete">

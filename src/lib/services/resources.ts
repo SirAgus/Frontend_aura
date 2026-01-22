@@ -8,7 +8,7 @@ export const userService = {
         const res = await axios.get("/api/users/me");
         return res.data.user;
     },
-    updateSettings: async (settings: { default_voice_id: string }): Promise<any> => {
+    updateSettings: async (settings: { default_voice_id: string }): Promise<{ status: string }> => {
         const res = await axios.patch("/api/users/me/settings", settings);
         return res.data;
     },
@@ -67,7 +67,7 @@ export const chatService = {
         const res = await axios.post("/api/threads", formData);
         return res.data;
     },
-    updateThread: async (id: number, title: string) => {
+    updateThread: async (id: number, title: string): Promise<{ status: string }> => {
         const res = await axios.patch(`/api/threads/${id}`, { title });
         return res.data;
     },

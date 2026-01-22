@@ -26,7 +26,7 @@ const GET = async (req: NextRequest) => {
         } else {
             return NextResponse.json({ error: "Download failed" }, { status: res.status });
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("Proxy download error:", e);
         return NextResponse.json({ error: "Internal error" }, { status: 500 });
     }

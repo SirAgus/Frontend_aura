@@ -50,7 +50,7 @@ const POST = async (request: NextRequest) => {
         }
 
         return NextResponse.json({ error: res.data }, { status: res.status });
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("BFF Login Error:", e);
         return NextResponse.json(
             { error: "Error en el servidor, favor intentelo más tarde" },

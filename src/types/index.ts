@@ -26,6 +26,7 @@ export interface Voice {
     region?: string;
     gender?: string;
     description?: string;
+    model?: string;
 }
 
 export interface VoiceUploadResponse {
@@ -47,12 +48,12 @@ export interface Thread {
 }
 
 export interface Message {
-    id: number;
-    thread_id: number;
+    id?: number;
+    thread_id?: number;
     role: "user" | "assistant";
     content: string;
     audio_id?: string;
-    created_at?: string; // Optional depending on actual backend
+    created_at?: string;
 }
 
 // Payloads
@@ -70,4 +71,20 @@ export interface ChatPayload {
     system_prompt?: string;
     max_tokens?: number;
     temperature?: number;
+}
+
+export interface HistoryItem {
+    id: string;
+    text: string;
+    voice_used: string;
+    timestamp: string;
+    audio_url?: string;
+    filename?: string;
+    mode?: string;
+    language_id?: string;
+    temperature?: number;
+    exaggeration?: number;
+    cfg?: number;
+    repetition_penalty?: number;
+    top_p?: number;
 }

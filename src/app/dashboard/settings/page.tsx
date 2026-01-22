@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import DashboardSidebar from '../../../components/DashboardSidebar';
 import { userService, voiceService } from '@/lib/services/resources';
-import { User } from '@/types';
+import { User, Voice } from '@/types';
 
 const translations = {
     es: {
@@ -86,7 +86,7 @@ export default function SettingsPage() {
     const [theme, setTheme] = useState('light');
     const [lang, setLang] = useState<'es' | 'en'>('es');
     const [user, setUser] = useState<User | null>(null);
-    const [voices, setVoices] = useState<any[]>([]);
+    const [voices, setVoices] = useState<Voice[]>([]);
     const [updating, setUpdating] = useState(false);
     const [apiKey, setApiKey] = useState<string | null>(null);
     const [isGeneratingKey, setIsGeneratingKey] = useState(false);

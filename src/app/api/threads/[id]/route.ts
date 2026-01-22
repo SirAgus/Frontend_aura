@@ -11,7 +11,7 @@ const DELETE = async (req: NextRequest, { params }: { params: Promise<{ id: stri
         } else {
             return NextResponse.json({ error: res.data }, { status: 502 });
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("BFF Delete Thread Error:", e);
         return NextResponse.json({ error: "Delete thread failed" }, { status: 500 });
     }
@@ -29,7 +29,7 @@ const PATCH = async (req: NextRequest, { params }: { params: Promise<{ id: strin
         } else {
             return NextResponse.json({ error: res.data }, { status: 502 });
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("BFF Update Thread Error:", e);
         return NextResponse.json({ error: "Update thread failed" }, { status: 500 });
     }

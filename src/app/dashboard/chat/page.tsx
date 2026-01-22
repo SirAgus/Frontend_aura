@@ -14,6 +14,7 @@ import remarkGfm from 'remark-gfm';
 import { chatService, userService, voiceService } from '@/lib/services/resources';
 import { useAudioQueue } from '@/hooks/useAudioQueue';
 import AudioWaves from '../../../components/AudioWaves';
+import { Thread, Message } from '@/types';
 
 const translations = {
     es: {
@@ -66,9 +67,9 @@ export default function ChatPage() {
     const [token, setToken] = useState<string | null>(null);
 
     // Data State
-    const [threads, setThreads] = useState<any[]>([]);
+    const [threads, setThreads] = useState<Thread[]>([]);
     const [activeThreadId, setActiveThreadId] = useState<number | null>(null);
-    const [messages, setMessages] = useState<any[]>([]);
+    const [messages, setMessages] = useState<Message[]>([]);
 
     // AI Params
     const [systemPrompt, setSystemPrompt] = useState("Eres un asistente útil y amable.");
@@ -182,7 +183,7 @@ export default function ChatPage() {
         } catch (e) { console.error(e); }
     };
 
-    const handleStartEdit = (e: React.MouseEvent, thread: any) => {
+    const handleStartEdit = (e: React.MouseEvent, thread: Thread) => {
         e.stopPropagation();
         setEditingThreadId(thread.id);
         setEditingTitle(thread.title);
@@ -228,9 +229,10 @@ export default function ChatPage() {
                 setIsVoiceMode(true);
             }
             console.log("Recording started in mode:", mode);
-        } catch (err: any) {
-            console.error("Error accessing mic:", err);
-            alert("Error al iniciar la grabación: " + err.message);
+        } catch (err: unknown) {
+            const error = err as Error;
+            console.error("Error accessing mic:", error);
+            alert("Error al iniciar la grabación: " + error.message);
             setIsRecording(false);
             setRecordingMode(null);
             recordingModeRef.current = null;
@@ -270,10 +272,10 @@ export default function ChatPage() {
                 setActiveThreadId(currentThreadId);
             }
 
-            const optimisticMsg = {
-                role: 'user',
+            const optimisticMsg: Message = {
+                role: 'user' as const,
                 content: audioBlob ? "🎤 [Audio enviado]" : currentText,
-                timestamp: new Date().toISOString()
+                created_at: new Date().toISOString()
             };
             setMessages(prev => [...prev, optimisticMsg]);
 
@@ -309,7 +311,8 @@ export default function ChatPage() {
             let aiText = "";
 
             // Add an empty assistant message to be filled
-            setMessages(prev => [...prev, { role: 'assistant', content: '', timestamp: new Date().toISOString() }]);
+            const emptyAssistantMsg: Message = { role: 'assistant' as const, content: '', created_at: new Date().toISOString() };
+            setMessages(prev => [...prev, emptyAssistantMsg]);
 
             if (reader) {
                 setIsWaiting(false);
@@ -623,7 +626,7 @@ export default function ChatPage() {
                                                         remarkPlugins={[remarkGfm]}
                                                         components={{
                                                             p: ({ children }) => <p className="mb-2 last:mb-0">{children}</p>,
-                                                            code: ({ node, inline, className, children, ...props }: any) => {
+                                                            code: ({ node, inline, className, children, ...props }: { node?: unknown, inline?: boolean, className?: string, children?: React.ReactNode }) => {
                                                                 const match = /language-(\w+)/.exec(className || '');
                                                                 return !inline ? (
                                                                     <pre className={`bg-neutral-500/10 p-3 rounded-lg overflow-x-auto text-xs font-mono my-2 border ${borderClass}`}>

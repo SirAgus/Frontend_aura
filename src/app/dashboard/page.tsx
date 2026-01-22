@@ -55,7 +55,7 @@ const translations = {
 };
 
 // Helper for Sidebar icons
-const UsersIcon = ({ size, ...props }: any) => (
+const UsersIcon = ({ size, ...props }: React.SVGProps<SVGSVGElement> & { size: number }) => (
     <svg
         width={size}
         height={size}
@@ -76,6 +76,7 @@ const UsersIcon = ({ size, ...props }: any) => (
 
 import DashboardSidebar from '../../components/DashboardSidebar';
 import { systemService, userService, voiceService, historyService } from '@/lib/services/resources';
+import { HistoryItem } from '@/types';
 
 export default function DashboardHome() {
     const router = useRouter();
@@ -89,7 +90,7 @@ export default function DashboardHome() {
         totalGenerations: 0,
         latency: 'N/A' // No data available yet
     });
-    const [recentHistory, setRecentHistory] = useState<any[]>([]);
+    const [recentHistory, setRecentHistory] = useState<HistoryItem[]>([]); // Typed history items
     const [loading, setLoading] = useState(true);
     const [systemInfo, setSystemInfo] = useState<{
         status: string;
@@ -118,16 +119,16 @@ export default function DashboardHome() {
                 if (systemData) {
                     setSystemInfo(systemData);
                 }
-            } catch (e) {
-                console.error("Error fetching system info:", e);
+            } catch {
+                console.warn("Could not fetch system info");
             }
 
             // 0. Fetch User Info
             try {
                 const userData = await userService.getMe();
                 setUserInfo(userData);
-            } catch (e) {
-                console.error("Error fetching user info:", e);
+            } catch {
+                console.warn("Could not fetch user info");
             }
 
             // 1. Fetch Voices Count
@@ -140,10 +141,10 @@ export default function DashboardHome() {
 
                 // Process History Data
                 const today = new Date().toISOString().split('T')[0];
-                const todayCount = historyData.filter((item: any) => item.timestamp && item.timestamp.startsWith(today)).length;
+                const todayCount = (historyData as HistoryItem[]).filter((item: HistoryItem) => item.timestamp && item.timestamp.startsWith(today)).length;
 
                 // Sort by newest first and take top 5
-                const sortedHistory = historyData.sort((a: any, b: any) =>
+                const sortedHistory = (historyData as HistoryItem[]).sort((a: HistoryItem, b: HistoryItem) =>
                     new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
                 );
 
@@ -155,8 +156,8 @@ export default function DashboardHome() {
                 });
                 setRecentHistory(sortedHistory.slice(0, 5));
 
-            } catch (e) {
-                console.error("Error fetching data:", e);
+            } catch {
+                console.error("Error fetching data");
             }
 
         } catch (error) {
@@ -187,7 +188,7 @@ export default function DashboardHome() {
         ? 'bg-white border-neutral-200'
         : 'bg-[#111] border-neutral-800';
 
-    const StatCard = ({ icon: Icon, label, value, color }: any) => (
+    const StatCard = ({ icon: Icon, label, value, color }: { icon: React.ElementType, label: string, value: string | number, color: string }) => (
         <div className={`p-6 border ${cardClasses} hover:border-${color}-500 transition-all`}>
             <div className="flex items-center justify-between mb-4">
                 <div className={`w-10 h-10 rounded-full bg-${color}-500/20 flex items-center justify-center`}>
@@ -200,7 +201,7 @@ export default function DashboardHome() {
         </div>
     );
 
-    const QuickActionCard = ({ icon: Icon, title, description, href, color }: any) => (
+    const QuickActionCard = ({ icon: Icon, title, description, href, color }: { icon: React.ElementType, title: string, description: string, href: string, color: string }) => (
         <Link
             href={href}
             className={`group p-8 border ${cardClasses} hover:border-${color}-500 transition-all cursor-pointer`}

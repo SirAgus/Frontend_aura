@@ -1,6 +1,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import api from "@/lib/services/api";
+import axios from "axios";
 
 const POST = async (req: NextRequest) => {
     try {
@@ -13,8 +14,10 @@ const POST = async (req: NextRequest) => {
         } else {
             return NextResponse.json({ error: res.data }, { status: res.status });
         }
-    } catch (e: any) {
-        if (e.response) return NextResponse.json({ error: e.response.data }, { status: e.response.status });
+    } catch (e: unknown) {
+        if (axios.isAxiosError(e)) {
+            if (e.response) return NextResponse.json({ error: e.response.data }, { status: e.response.status });
+        }
         return NextResponse.json({ error: "Create thread failed" }, { status: 500 });
     }
 };

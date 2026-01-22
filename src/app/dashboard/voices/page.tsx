@@ -7,6 +7,7 @@ import Link from 'next/link';
 import DashboardSidebar from '../../../components/DashboardSidebar';
 
 import { voiceService, ttsService } from '@/lib/services/resources';
+import { Voice } from '@/types';
 
 const translations = {
     es: {
@@ -86,12 +87,12 @@ export default function VoiceLabPage() {
         { code: 'zh', name: 'Chinese' }
     ];
 
-    const [voices, setVoices] = useState<any[]>([]);
+    const [voices, setVoices] = useState<Voice[]>([]);
     const [loading, setLoading] = useState(false);
     const [message, setMessage] = useState<{ type: 'success' | 'error', text: string } | null>(null);
 
     // Edit State
-    const [editingVoice, setEditingVoice] = useState<any>(null);
+    const [editingVoice, setEditingVoice] = useState<(Voice & { originalName: string, newName: string }) | null>(null);
 
     // Audio Preview State
     const [playingVoice, setPlayingVoice] = useState<string | null>(null);
@@ -107,8 +108,8 @@ export default function VoiceLabPage() {
         try {
             const voices = await voiceService.getAll();
             // Handle both old (array of strings) and new (array of objects) formats gracefully
-            const processedVoices = (voices || []).map((v: any) =>
-                typeof v === 'string' ? { name: v, language: '?', gender: '?' } : v
+            const processedVoices = (voices || []).map((v: Voice | string) =>
+                typeof v === 'string' ? { name: v, language: '?', gender: '?' } as Voice : v
             );
             setVoices(processedVoices);
         } catch (e) { console.error(e); }
@@ -158,10 +159,10 @@ export default function VoiceLabPage() {
             if (editingVoice.newName && editingVoice.newName !== editingVoice.originalName) {
                 params.append('new_name', editingVoice.newName);
             }
-            params.append('language', editingVoice.language);
-            params.append('region', editingVoice.region);
-            params.append('gender', editingVoice.gender);
-            params.append('description', editingVoice.description);
+            params.append('language', editingVoice.language || '');
+            params.append('region', editingVoice.region || '');
+            params.append('gender', editingVoice.gender || '');
+            params.append('description', editingVoice.description || '');
 
             await voiceService.update(editingVoice.originalName, params);
             setEditingVoice(null);
@@ -391,7 +392,7 @@ export default function VoiceLabPage() {
                                 ) : (
                                     <div className="grid grid-cols-1 divide-y divide-neutral-200 dark:divide-neutral-800">
                                         {voices.map((voice, idx) => {
-                                            const v = typeof voice === 'string' ? { name: voice } : voice;
+                                            const v = voice;
 
                                             return (
                                                 <div key={idx} className={`p-5 flex items-start justify-between hover:bg-neutral-500/5 transition-colors group`}>
@@ -424,7 +425,7 @@ export default function VoiceLabPage() {
                                                             {playingVoice === v.name ? <Loader2 size={20} className="animate-spin" /> : <Play size={20} />}
                                                         </button>
                                                         <button
-                                                            onClick={() => setEditingVoice({ ...v, originalName: v.name, newName: v.name })}
+                                                            onClick={() => setEditingVoice({ ...v, originalName: v.name, newName: v.name } as Voice & { originalName: string, newName: string })}
                                                             className={`p-3 rounded-full hover:bg-neutral-500/10 transition-colors opacity-20 group-hover:opacity-100`}
                                                             title="Edit Voice"
                                                         >

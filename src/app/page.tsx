@@ -134,7 +134,7 @@ export default function LandingPage() {
   // Audio Ref
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
-  const dataArrayRef = useRef<Uint8Array<ArrayBuffer> | null>(null);
+  const dataArrayRef = useRef<Uint8Array | null>(null);
   const animationRef = useRef<number | null>(null);
 
   const t = translations[lang];
@@ -168,13 +168,14 @@ export default function LandingPage() {
     if (!audioRef.current) return;
 
     try {
-      const audioContext = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+      const audioContext = new AudioContextClass();
       const analyser = audioContext.createAnalyser();
       const source = audioContext.createMediaElementSource(audioRef.current);
 
       analyser.fftSize = 256;
       const bufferLength = analyser.frequencyBinCount;
-      const dataArray = new Uint8Array(new ArrayBuffer(bufferLength));
+      const dataArray = new Uint8Array(bufferLength);
 
       source.connect(analyser);
       analyser.connect(audioContext.destination);
@@ -191,7 +192,8 @@ export default function LandingPage() {
   const updateVisualizer = () => {
     if (!analyserRef.current || !dataArrayRef.current) return;
 
-    analyserRef.current.getByteFrequencyData(dataArrayRef.current);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    analyserRef.current.getByteFrequencyData(dataArrayRef.current as any);
 
     const newHeights = [];
     const data = dataArrayRef.current;
@@ -305,9 +307,10 @@ export default function LandingPage() {
       } else {
         setLoginError('No se pudo autenticar');
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Login error:', error);
-      const msg = error.response?.data?.error || error.response?.data?.detail || 'Error de conexión';
+      const err = error as { response?: { data?: { error?: string; detail?: string } } };
+      const msg = err.response?.data?.error || err.response?.data?.detail || 'Error de conexión';
       setLoginError(typeof msg === 'string' ? msg : JSON.stringify(msg));
     }
   };

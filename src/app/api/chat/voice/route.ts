@@ -31,7 +31,7 @@ const POST = async (req: NextRequest) => {
             },
         });
 
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("BFF Voice Chat Error:", e);
         return new Response(JSON.stringify({ error: "Voice chat failed" }), {
             status: 500,

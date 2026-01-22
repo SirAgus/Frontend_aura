@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import api from "@/lib/services/api";
 
 const GET = async () => {
@@ -9,7 +9,7 @@ const GET = async () => {
         } else {
             return NextResponse.json({ error: res.data }, { status: res.status });
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error(e);
         return NextResponse.json({ error: "Failed to fetch voices" }, { status: 500 });
     }

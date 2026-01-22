@@ -142,6 +142,27 @@ const MULTILINGUAL_LANGS = [
     { code: 'uk', name: 'Ukrainian' }
 ];
 
+const STYLE_PRESETS: Record<string, { label: string; temp: number; exag: number; cfg: number; topP: number; rep: number }> = {
+    animated: { label: '✨ Animated (Animada)', temp: 1.2, exag: 2.0, cfg: 1.0, topP: 0.95, rep: 1.2 },
+    neutral: { label: '😐 Neutral', temp: 0.75, exag: 0.5, cfg: 2.0, topP: 0.9, rep: 2.0 },
+    sad: { label: '😢 Sad (Triste)', temp: 0.4, exag: 0.0, cfg: 3.0, topP: 0.8, rep: 2.0 },
+    serious: { label: '🤔 Serious (Serio)', temp: 0.3, exag: 0.1, cfg: 4.0, topP: 0.7, rep: 2.5 },
+    happy: { label: '😄 Happy (Feliz)', temp: 1.35, exag: 2.5, cfg: 0.8, topP: 1.0, rep: 1.15 },
+    terrified: { label: '😱 Terrified (Aterrado)', temp: 1.5, exag: 4.0, cfg: 0.5, topP: 1.0, rep: 1.1 },
+};
+
+const AMBIENCE_OPTIONS = [
+    { id: '', label: 'None (Sin ambiente)' },
+    { id: 'rain', label: 'Rain (Lluvia)' },
+    { id: 'birds', label: 'Birds (Pájaros/Bosque)' },
+    { id: 'office', label: 'Office (Oficina moderna)' },
+    { id: 'storm', label: 'Storm (Tormenta)' },
+    { id: 'wind', label: 'Wind (Viento)' },
+    { id: 'cafe', label: 'Cafe (Cafetería)' },
+    { id: 'lofi', label: 'Lofi (Música LoFi)' },
+];
+
+
 export default function SynthesisPage() {
     const router = useRouter();
     const [theme, setTheme] = useState('light');
@@ -216,14 +237,7 @@ export default function SynthesisPage() {
         }
     };
 
-    const STYLE_PRESETS: Record<string, any> = {
-        animated: { label: '✨ Animated (Animada)', temp: 1.2, exag: 2.0, cfg: 1.0, topP: 0.95, rep: 1.2 },
-        neutral: { label: '😐 Neutral', temp: 0.75, exag: 0.5, cfg: 2.0, topP: 0.9, rep: 2.0 },
-        sad: { label: '😢 Sad (Triste)', temp: 0.4, exag: 0.0, cfg: 3.0, topP: 0.8, rep: 2.0 },
-        serious: { label: '🤔 Serious (Serio)', temp: 0.3, exag: 0.1, cfg: 4.0, topP: 0.7, rep: 2.5 },
-        happy: { label: '😄 Happy (Feliz)', temp: 1.35, exag: 2.5, cfg: 0.8, topP: 1.0, rep: 1.15 },
-        terrified: { label: '😱 Terrified (Aterrado)', temp: 1.5, exag: 4.0, cfg: 0.5, topP: 1.0, rep: 1.1 },
-    };
+    // Style presets moved outside
 
     // Visualization Loop
     useEffect(() => {
@@ -241,7 +255,8 @@ export default function SynthesisPage() {
         if (isPlaying && audioRef.current && audioUrl) {
             try {
                 if (!audioContextRef.current) {
-                    audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
+                    const AudioContextClass = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext;
+                    audioContextRef.current = new AudioContextClass();
                     analyserRef.current = audioContextRef.current.createAnalyser();
                     analyserRef.current.fftSize = 256;
                 }
@@ -307,20 +322,11 @@ export default function SynthesisPage() {
         }
     }, [selectedStyle]);
 
-    const AMBIENCE_OPTIONS = [
-        { id: '', label: 'None (Sin ambiente)' },
-        { id: 'rain', label: 'Rain (Lluvia)' },
-        { id: 'birds', label: 'Birds (Pájaros/Bosque)' },
-        { id: 'office', label: 'Office (Oficina moderna)' },
-        { id: 'storm', label: 'Storm (Tormenta)' },
-        { id: 'wind', label: 'Wind (Viento)' },
-        { id: 'cafe', label: 'Cafe (Cafetería)' },
-        { id: 'lofi', label: 'Lofi (Música LoFi)' },
-    ];
+    // Ambience options moved outside
 
     // State for voices (now objects)
-    const [availableVoices, setAvailableVoices] = useState<any[]>([]);
-    const [selectedVoice, setSelectedVoice] = useState<any>(null); // Now stores the full object
+    const [availableVoices, setAvailableVoices] = useState<Voice[]>([]);
+    const [selectedVoice, setSelectedVoice] = useState<Voice | null>(null); // Now stores the full object
     const [file, setFile] = useState<File | null>(null);
 
     const audioRef = useRef<HTMLAudioElement>(null);
@@ -336,14 +342,14 @@ export default function SynthesisPage() {
     const fetchVoices = async () => {
         try {
             const voices = await voiceService.getAll();
-            const processed = (voices || []).map((v: any) =>
-                typeof v === 'string' ? { name: v, language: '?', gender: '?' } : v
+            const processed = (voices || []).map((v: Voice | string) =>
+                typeof v === 'string' ? { name: v, language: '?', gender: '?' } as Voice : v
             );
             setAvailableVoices(processed);
 
             if (processed.length > 0 && !file) {
                 // If previously selected voice is still available, keep it, else defalt
-                if (!selectedVoice || !processed.find((v: any) => v.name === selectedVoice.name)) {
+                if (!selectedVoice || !processed.find((v: Voice) => v.name === selectedVoice.name)) {
                     setSelectedVoice(processed[0]);
                 }
             }
@@ -426,9 +432,13 @@ export default function SynthesisPage() {
 
             if (file) {
                 formData.append('audio_prompt', file);
-            } else {
+            } else if (selectedVoice) {
                 // Use selectedVoice.name for the ID
                 formData.append('voice_id', selectedVoice.name);
+            } else {
+                setError("Seleccione una voz para continuar.");
+                setLoading(false);
+                return;
             }
 
             const blob = await ttsService.generate(formData);
@@ -958,21 +968,21 @@ export default function SynthesisPage() {
                                     <Info size={12} /> 01. Emociones
                                 </div>
                                 <p className="text-[11px] leading-relaxed opacity-60 font-medium italic">
-                                    "Prueba usar tags como [laugh], [sigh] o [whisper] para que la IA actúe de forma más humana."
+                                    &quot;Prueba usar tags como [laugh], [sigh] o [whisper] para que la IA actúe de forma más humana.&quot;
                                 </p>
                             </div>
 
                             <div className="space-y-4">
                                 <div className="text-[10px] font-mono font-black uppercase text-purple-500 tracking-[0.2em]">02. Puntuación</div>
                                 <p className="text-[11px] leading-relaxed opacity-60 font-medium italic">
-                                    "El uso excesivo de elipsis (...) genera pausas más naturales y dubitativas en el modelo Turbo."
+                                    &quot;El uso excesivo de elipsis (...) genera pausas más naturales y dubitativas en el modelo Turbo.&quot;
                                 </p>
                             </div>
 
                             <div className="space-y-4">
                                 <div className="text-[10px] font-mono font-black uppercase text-blue-500 tracking-[0.2em]">03. Clonación</div>
                                 <p className="text-[11px] leading-relaxed opacity-60 font-medium italic">
-                                    "Para mejores resultados al clonar, asegúrate de que el audio no tenga música de fondo ni ruidos."
+                                    &quot;Para mejores resultados al clonar, asegúrate de que el audio no tenga música de fondo ni ruidos.&quot;
                                 </p>
                             </div>
 
@@ -982,7 +992,7 @@ export default function SynthesisPage() {
                                 </div>
                                 {!showAdvanced ? (
                                     <p className="text-[11px] leading-relaxed opacity-60 font-medium italic animate-in fade-in duration-500">
-                                        "Configura los matices técnicos de la generación neuronal para ajustar la expresividad y precisión."
+                                        &quot;Configura los matices técnicos de la generación neuronal para ajustar la expresividad y precisión.&quot;
                                     </p>
                                 ) : (
                                     <div className="space-y-4 opacity-70 animate-in slide-in-from-top-4 fade-in duration-500">
@@ -1011,7 +1021,7 @@ export default function SynthesisPage() {
                                     <Waves size={12} /> 05. Ambientes Dinámicos
                                 </div>
                                 <p className="text-[11px] leading-relaxed opacity-60 font-medium italic">
-                                    "Controla el entorno y su duración en tiempo real: <span className="text-emerald-500/80">[rain:10s]</span> Lluvia por 10s... <span className="text-orange-500/80">[ambience:truenos:2s]</span> ¡Boom!"
+                                    &quot;Controla el entorno y su duración en tiempo real: <span className="text-emerald-500/80">[rain:10s]</span> Lluvia por 10s... <span className="text-orange-500/80">[ambience:truenos:2s]</span> ¡Boom!&quot;
                                 </p>
                             </div>
 
@@ -1163,7 +1173,7 @@ export default function SynthesisPage() {
                                                     <span className="text-[10px] font-black uppercase tracking-widest">Pro Tip</span>
                                                 </div>
                                                 <p className="text-xs font-medium leading-relaxed italic">
-                                                    "Selecciona una voz de la biblioteca haciendo clic en la foto circular para obtener los mejores resultados neuronales."
+                                                    &quot;Selecciona una voz de la biblioteca haciendo clic en la foto circular para obtener los mejores resultados neuronales.&quot;
                                                 </p>
                                             </div>
                                         </div>

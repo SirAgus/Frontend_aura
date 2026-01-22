@@ -1,8 +1,9 @@
 
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import api from "@/lib/services/api";
+import axios from "axios";
 
-const GET = async (req: NextRequest) => {
+const GET = async () => {
     try {
         const res = await api.get("/users/me");
         if (res.status === 200 || res.status === 201) {
@@ -10,10 +11,12 @@ const GET = async (req: NextRequest) => {
         } else {
             return NextResponse.json({ error: res.data }, { status: res.status });
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error(e);
-        if (e.response) {
-            return NextResponse.json({ error: e.response.data }, { status: e.response.status });
+        if (axios.isAxiosError(e)) {
+            if (e.response) {
+                return NextResponse.json({ error: e.response.data }, { status: e.response.status });
+            }
         }
         return NextResponse.json({ error: "Internal Server Error" }, { status: 500 });
     }

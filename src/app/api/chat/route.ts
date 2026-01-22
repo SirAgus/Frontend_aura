@@ -32,7 +32,7 @@ const POST = async (req: NextRequest) => {
             },
         });
 
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("BFF Chat Error:", e);
         return new Response(JSON.stringify({ error: "Chat failed" }), {
             status: 500,

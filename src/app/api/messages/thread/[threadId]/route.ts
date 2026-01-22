@@ -11,7 +11,7 @@ const GET = async (req: NextRequest, { params }: { params: Promise<{ threadId: s
         } else {
             return NextResponse.json({ error: res.data }, { status: res.status });
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error(e);
         return NextResponse.json({ error: "Fetch messages failed" }, { status: 500 });
     }

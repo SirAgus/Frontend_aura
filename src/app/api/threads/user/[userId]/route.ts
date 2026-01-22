@@ -10,7 +10,7 @@ const GET = async (req: NextRequest, { params }: { params: Promise<{ userId: str
         } else {
             return NextResponse.json({ error: res.data }, { status: res.status });
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error(e);
         return NextResponse.json({ error: "Fetch threads failed" }, { status: 500 });
     }

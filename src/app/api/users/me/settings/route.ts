@@ -12,7 +12,7 @@ const PATCH = async (req: NextRequest) => {
         } else {
             return NextResponse.json({ error: res.data }, { status: 502 });
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("BFF Settings Update Error:", e);
         return NextResponse.json({ error: "Failed to update settings" }, { status: 500 });
     }

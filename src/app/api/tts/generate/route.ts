@@ -1,6 +1,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import api from "@/lib/services/api";
+import axios from "axios";
 
 const POST = async (req: NextRequest) => {
     try {
@@ -22,9 +23,11 @@ const POST = async (req: NextRequest) => {
         } else {
             return NextResponse.json({ error: "TTS Generation Failed" }, { status: res.status });
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("TTS Error", e);
-        if (e.response) return NextResponse.json({ error: e.response.data || "Error" }, { status: e.response.status });
+        if (axios.isAxiosError(e)) {
+            if (e.response) return NextResponse.json({ error: e.response.data || "Error" }, { status: e.response.status });
+        }
         return NextResponse.json({ error: "TTS failed" }, { status: 500 });
     }
 };

@@ -16,7 +16,7 @@ const POST = async (req: NextRequest) => {
         } else {
             return NextResponse.json({ error: res.data }, { status: res.status });
         }
-    } catch (e: any) {
+    } catch (e: unknown) {
         console.error("Upload error", e);
         return NextResponse.json({ error: "Upload failed" }, { status: 500 });
     }
