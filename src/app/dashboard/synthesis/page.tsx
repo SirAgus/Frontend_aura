@@ -1,13 +1,13 @@
 'use client';
 
-import React, { useState, useRef, useEffect } from 'react';
-import { Moon, Sun, Waves, Globe, LogOut, Mic, Users, Clock, Settings, Play, Pause, Download, Sparkles, Upload, Loader2, Save, X, RefreshCw, Volume2, Search, Filter, ArrowRight, Info, Edit2, PlusCircle } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Moon, Sun, Waves, Globe, LogOut, Mic, Users, Settings, Play, Pause, Download, Sparkles, Upload, Loader2, X, RefreshCw, Volume2, Search, Filter, ArrowRight, Info, PlusCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import Link from 'next/link';
 import DashboardSidebar from '../../../components/DashboardSidebar';
 
 // API Config
 import { ttsService, voiceService } from '@/lib/services/resources';
+import { Voice } from '@/types';
 
 
 
@@ -434,7 +434,8 @@ export default function SynthesisPage() {
             const blob = await ttsService.generate(formData);
             setAudioUrl(URL.createObjectURL(blob));
 
-        } catch (err: any) {
+        } catch (error: unknown) {
+            const err = error as Error;
             setError(err.message || 'Error generating TTS');
         } finally {
             setLoading(false);

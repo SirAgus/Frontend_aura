@@ -11,6 +11,10 @@ export const userService = {
     updateSettings: async (settings: { default_voice_id: string }): Promise<any> => {
         const res = await axios.patch("/api/users/me/settings", settings);
         return res.data;
+    },
+    createApiKey: async (): Promise<{ api_key: string }> => {
+        const res = await axios.post("/api/users/me/api-key");
+        return res.data;
     }
 };
 

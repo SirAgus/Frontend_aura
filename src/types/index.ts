@@ -15,6 +15,7 @@ export interface User {
     email: string;
     role: string;
     default_voice_id?: string;
+    api_key?: string;
     created_at: string;
 }
 
